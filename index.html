@@ -1395,6 +1395,9 @@
       document.getElementById('pdfHdSub').textContent = `${items.length} item${items.length !== 1 ? 's' : ''} · Choose layout & fields`;
       document.getElementById('pdfConfig').classList.remove('hide');
       document.getElementById('pdfProgress').classList.remove('show');
+      // Sync PDF field checkboxes with hide toggles
+      document.getElementById('fld-stock').checked = !hideStock;
+      document.getElementById('fld-gender').checked = !hideGender;
       document.getElementById('pdfDoneActions').style.display = 'none';
       document.getElementById('pdfBar').style.width = '0%';
       document.getElementById('pdfModal').classList.add('show');
