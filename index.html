@@ -2112,6 +2112,13 @@
             <div class="cat-controls">
                 <div class="cat-select">
                     <span
+                        style="color:var(--t3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Size:</span>
+                    <select id="catSizeSel">
+                        <option value="all">All Sizes</option>
+                    </select>
+                </div>
+                <div class="cat-select">
+                    <span
                         style="color:var(--t3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Status:</span>
                     <select id="catStatusSel">
                         <option value="all">All</option>
@@ -2268,7 +2275,7 @@
 
     <script>
         /* ═════════ State & Config ═════════ */
-        const API = 'https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnQahDf-U5stRNFyPBnq_pZpb59NJFQwM5a_wAlgYhFLssegRymg1C3lpCuGMPCHw0MxRDCZ7V7Sv_0HtT-c7ZpHZDxUz8KvUYiX4t3B4E-HaPJJiwNS9IqsWLf8fMeOLaycLf5aHGMhUpEpqQqF9kK7yFrTgt1879FmzeJLyYh9YfH3tZpo0NY-tMKGk_G1z4dfkFKOVQD-w9oTO4njqNDbCl66eWEaImzX8C0-CYN6kiaIDz3x_wKK2q69x1_1s9M9PgNjpx453fZ0TBtWGSo0OkHXTQ&lib=MpdQI8CjfD6mCF_zcE0hY0yU-P2DTP4Ui';
+        const API = 'https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnQIso5fu5IY81z7rkyvltGrZ4j-urd9av1h6gu_iC3bbHx5CCfvTvi4Dzhg0KRrPBf7bklHhtW_B9R5D_aJbGQ52PIqd2pXdyNeY-6cOf5YWwMSRqj-V9TGcfRNy-iOX4KTY9PEnSQqZ1PBO9M-evtq1615D4K-VrPxcrwvcBdVGW7fgkUO0swQsjs-K-1kuf7vrl6iE_jgIWlqg6NXaqSrh0MD6Veyum-OVzbgPbl0HWF-NENKUE7qIWusaE-I72rbJiEVgZReUm9jUkvoXRcVM3EubQ&lib=MpdQI8CjfD6mCF_zcE0hY0yU-P2DTP4Ui';
 
         let COL = {
             key: 'Unique key', timestamp: 'Timestamp', styleNo: 'Style No.',
@@ -2278,7 +2285,7 @@
 
         let products = [], hits = [], activeIdx = -1, lastQ = '';
         let currentTab = 'home';
-        let catFilters = { stock: 'all', gender: 'all', sub: 'all', status: 'all', sort: 'default', search: '' };
+        let catFilters = { stock: 'all', gender: 'all', sub: 'all', size: 'all', status: 'all', sort: 'default', search: '' };
         let selected = new Set();
         let hideStock = false, hideGender = false;
         let pdfPerPage = 2;
@@ -2602,6 +2609,13 @@
                         if (g !== catFilters.sub.toUpperCase()) return false;
                     }
                 }
+                // Size filter
+                if (catFilters.size !== 'all') {
+                    const rSize = (r[COL.size] !== null && r[COL.size] !== undefined && String(r[COL.size]).trim() !== '') 
+                        ? String(r[COL.size]).trim().toUpperCase() 
+                        : 'N/A';
+                    if (rSize !== catFilters.size.toUpperCase()) return false;
+                }
                 // Stock chip filter
                 const sNum = stockNum(r[COL.stock]);
                 const sState = stockState(r[COL.stock]);
@@ -2655,6 +2669,8 @@
             document.getElementById('cf-gen-ladies').textContent = `(${cA + cB})`;
             document.getElementById('cf-sub-a').textContent = `(${cA})`;
             document.getElementById('cf-sub-b').textContent = `(${cB})`;
+
+            populateSizeFilters();
         }
 
         function renderCatalog() {
@@ -2754,6 +2770,45 @@
                 renderCatalog();
             });
         });
+
+        function populateSizeFilters() {
+            const sel = document.getElementById('catSizeSel');
+            if (!sel) return;
+
+            const counts = {};
+            products.forEach(r => {
+                const raw = r[COL.size];
+                const sz = (raw !== null && raw !== undefined && String(raw).trim() !== '') 
+                    ? String(raw).trim().toUpperCase() 
+                    : 'N/A';
+                counts[sz] = (counts[sz] || 0) + 1;
+            });
+
+            const uniqueSizes = Object.keys(counts).sort((a, b) => {
+                if (a === 'N/A') return 1;
+                if (b === 'N/A') return -1;
+                return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+            });
+
+            let selHtml = `<option value="all"${catFilters.size === 'all' ? ' selected' : ''}>All Sizes (${products.length})</option>`;
+            uniqueSizes.forEach(sz => {
+                const isSelected = catFilters.size === sz;
+                selHtml += `<option value="${sz}"${isSelected ? ' selected' : ''}>${sz} (${counts[sz]})</option>`;
+            });
+            sel.innerHTML = selHtml;
+        }
+
+        function setSizeFilter(sizeVal) {
+            catFilters.size = sizeVal;
+            const sel = document.getElementById('catSizeSel');
+            if (sel && sel.value !== sizeVal) sel.value = sizeVal;
+            renderCatalog();
+        }
+
+        document.getElementById('catSizeSel').addEventListener('change', e => {
+            setSizeFilter(e.target.value);
+        });
+
         document.getElementById('catStatusSel').addEventListener('change', e => {
             catFilters.status = e.target.value; renderCatalog();
         });
@@ -2897,6 +2952,9 @@
                 if (catFilters.gender !== 'all') {
                     if (catFilters.gender === 'Male') parts.push('Men');
                     else parts.push(catFilters.sub === 'all' ? 'Ladies' : `Ladies · Cat ${catFilters.sub}`);
+                }
+                if (catFilters.size !== 'all') {
+                    parts.push(`Size ${catFilters.size}`);
                 }
                 if (catFilters.stock !== 'all') {
                     const m = { ge10: 'Stock ≥ 10', ge30: 'Stock ≥ 30', ge50: 'Stock ≥ 50', out: 'Out of Stock', na: 'Not Updated' };
