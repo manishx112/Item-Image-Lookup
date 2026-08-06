@@ -1,0 +1,3643 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+    <meta name="theme-color" content="#f0f3ff" />
+    <title>Item Image Lookup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap"
+        rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        html {
+            height: 100%
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f0f3ff;
+            color: #1a1f3d;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        :root {
+            --blue: #3b5bdb;
+            --blue-lt: #eef2ff;
+            --blue-md: #bfcbff;
+            --green: #0ca678;
+            --green-lt: #e8faf5;
+            --green-md: #63e6be;
+            --amber: #e67700;
+            --amber-lt: #fff8eb;
+            --amber-md: #ffd28a;
+            --red: #c92a2a;
+            --red-lt: #fff0f0;
+            --red-md: #ffc9c9;
+            --white: #fff;
+            --border: #dde3f5;
+            --border2: #c5cfee;
+            --t1: #1a1f3d;
+            --t2: #4a5282;
+            --t3: #8a93c0;
+            --sh: 0 2px 10px rgba(59, 91, 219, .07);
+            --sh2: 0 4px 20px rgba(59, 91, 219, .13);
+            --r: 14px;
+            --rsm: 10px;
+            --rxs: 7px;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image: radial-gradient(#3b5bdb1a 1px, transparent 1px);
+            background-size: 26px 26px;
+            pointer-events: none;
+        }
+
+        /* ── Header ── */
+        .hdr {
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            height: 48px;
+            padding: 0 14px;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            background: rgba(240, 243, 255, .93);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-bottom: 1.5px solid var(--border2);
+        }
+
+        .hlogo {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: var(--blue);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(59, 91, 219, .35);
+        }
+
+        .hlogo svg {
+            width: 17px;
+            height: 17px
+        }
+
+        .htxt {
+            min-width: 0
+        }
+
+        .hname {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--t1);
+            letter-spacing: -.3px
+        }
+
+        .hsub {
+            font-size: 10px;
+            color: var(--t3)
+        }
+
+        .htools {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            flex-shrink: 0
+        }
+
+        .htool {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--white);
+            border: 1.5px solid var(--border2);
+            border-radius: 20px;
+            padding: 4px 9px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--t2);
+            cursor: pointer;
+            transition: all .15s;
+            user-select: none;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .htool:hover {
+            border-color: var(--blue);
+            color: var(--blue)
+        }
+
+        .htool.off {
+            background: var(--blue-lt);
+            border-color: var(--blue-md);
+            color: var(--blue)
+        }
+
+        .htool svg {
+            width: 11px;
+            height: 11px
+        }
+
+        .hpill {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--white);
+            border: 1.5px solid var(--border2);
+            border-radius: 20px;
+            padding: 4px 11px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--t3);
+            transition: all .3s;
+        }
+
+        .hpill.live {
+            border-color: var(--green-md);
+            color: var(--green);
+            background: var(--green-lt)
+        }
+
+        /* Showing cached rows, or the network is unreachable. */
+        .hpill.stale {
+            border-color: var(--amber-md);
+            color: var(--amber);
+            background: var(--amber-lt)
+        }
+
+        .htool.spin svg {
+            animation: spin .8s linear infinite
+        }
+
+        .htool.spin {
+            color: var(--blue);
+            border-color: var(--blue-md)
+        }
+
+        .hdot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+            flex-shrink: 0
+        }
+
+        .hpill.live .hdot {
+            animation: blink 1.8s ease-in-out infinite
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .25
+            }
+        }
+
+        /* ── Tabs ── */
+        /* Segmented control in the header. The sunken track background is what
+           tells the user these two are a pick-one option, not buttons. */
+        .seg {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            margin: 0 auto;
+            flex-shrink: 0;
+            background: #dde4f7;
+            border: 1.5px solid var(--border2);
+            border-radius: 22px;
+            padding: 3px;
+            box-shadow: inset 0 1px 3px rgba(59, 91, 219, .10);
+        }
+
+        .tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: transparent;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 18px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--t2);
+            cursor: pointer;
+            transition: all .15s;
+            user-select: none;
+            white-space: nowrap;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .tab:hover:not(.on) {
+            background: rgba(255, 255, 255, .6);
+            color: var(--blue)
+        }
+
+        .tab.on {
+            background: var(--blue);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(59, 91, 219, .38);
+        }
+
+        .tab svg {
+            width: 14px;
+            height: 14px
+        }
+
+        /* ── Layout ── */
+        .wrap {
+            position: relative;
+            z-index: 1;
+            max-width: 560px;
+            margin: 0 auto;
+            padding: 12px 15px 70px
+        }
+
+        .wrap.wide {
+            max-width: 1100px
+        }
+
+        /* ── Hero ── */
+        .hero {
+            margin-bottom: 22px
+        }
+
+        .htag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--blue-lt);
+            border: 1.5px solid var(--blue-md);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--blue);
+            margin-bottom: 11px;
+            letter-spacing: .2px;
+        }
+
+        .htag svg {
+            width: 11px;
+            height: 11px
+        }
+
+        .hh1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--t1);
+            letter-spacing: -.6px;
+            line-height: 1.25;
+            margin-bottom: 6px
+        }
+
+        .hh1 b {
+            color: var(--blue)
+        }
+
+        .hp {
+            font-size: 13px;
+            color: var(--t2);
+            line-height: 1.65
+        }
+
+        /* ── Search card ── */
+        .sc {
+            background: var(--white);
+            border: 2px solid var(--border);
+            border-radius: var(--r);
+            box-shadow: var(--sh);
+            transition: border-color .2s, box-shadow .2s;
+            position: relative;
+        }
+
+        .sc:focus-within {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 4px rgba(59, 91, 219, .1), var(--sh2)
+        }
+
+        .si {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 13px 15px
+        }
+
+        .sico {
+            flex-shrink: 0;
+            color: var(--t3);
+            transition: color .2s
+        }
+
+        .sc:focus-within .sico {
+            color: var(--blue)
+        }
+
+        .sico svg {
+            width: 19px;
+            height: 19px;
+            display: block
+        }
+
+        .sinp {
+            flex: 1;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--t1);
+            caret-color: var(--blue);
+            letter-spacing: .4px;
+            min-width: 0;
+        }
+
+        .sinp::placeholder {
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+            font-size: 14px;
+            color: var(--t3);
+            letter-spacing: 0
+        }
+
+        .sclr {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            flex-shrink: 0;
+            background: var(--border);
+            border: 1.5px solid var(--border2);
+            border-radius: var(--rxs);
+            color: var(--t3);
+            cursor: pointer;
+            transition: all .15s;
+        }
+
+        .sclr:hover {
+            background: var(--red-lt);
+            border-color: var(--red-md);
+            color: var(--red)
+        }
+
+        .sclr svg {
+            width: 13px;
+            height: 13px;
+            display: block
+        }
+
+        /* ── Dropdown ── */
+        .dd {
+            position: absolute;
+            top: calc(100% + 7px);
+            left: 0;
+            right: 0;
+            z-index: 400;
+            background: var(--white);
+            border: 2px solid var(--border2);
+            border-radius: var(--r);
+            display: none;
+            max-height: 310px;
+            overflow-y: auto;
+            box-shadow: 0 10px 36px rgba(59, 91, 219, .14);
+        }
+
+        .dd::-webkit-scrollbar {
+            width: 4px
+        }
+
+        .dd::-webkit-scrollbar-thumb {
+            background: var(--border2);
+            border-radius: 2px
+        }
+
+        .ddhd {
+            padding: 7px 13px 6px;
+            background: #fafbff;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            color: var(--t3);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .ddr {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 10px 13px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: background .1s;
+        }
+
+        .ddr:last-child {
+            border-bottom: none
+        }
+
+        .ddr:hover,
+        .ddr.on {
+            background: var(--blue-lt)
+        }
+
+        .dsku {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--blue);
+            background: var(--blue-lt);
+            border: 1px solid var(--blue-md);
+            padding: 2px 8px;
+            border-radius: 5px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .dnm {
+            font-size: 13px;
+            color: var(--t2);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            min-width: 0
+        }
+
+        .drate {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 20px;
+            flex-shrink: 0;
+            background: var(--blue-lt);
+            color: var(--blue)
+        }
+
+        mark {
+            background: #fff3bf;
+            color: #865600;
+            border-radius: 2px;
+            padding: 0 1px
+        }
+
+        /* ── Status / Skeleton / Empty ── */
+        .sts {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--t3);
+            padding: 6px 2px;
+            min-height: 28px
+        }
+
+        .sts.load {
+            color: var(--blue)
+        }
+
+        .sts.ok {
+            color: var(--green)
+        }
+
+        .sts.err {
+            color: var(--red)
+        }
+
+        .spn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            animation: spin .65s linear infinite;
+            flex-shrink: 0
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .empt {
+            text-align: center;
+            padding: 38px 20px 10px
+        }
+
+        .ebox {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            background: var(--white);
+            border: 2px solid var(--border2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            box-shadow: var(--sh);
+        }
+
+        .ebox svg {
+            width: 26px;
+            height: 26px
+        }
+
+        .et {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--t2);
+            margin-bottom: 5px
+        }
+
+        .es {
+            font-size: 13px;
+            color: var(--t3);
+            line-height: 1.7
+        }
+
+        .chips {
+            display: flex;
+            gap: 7px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 15px
+        }
+
+        .chip {
+            background: var(--white);
+            border: 1.5px solid var(--border2);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--t2);
+            cursor: pointer;
+            transition: all .15s;
+        }
+
+        .chip:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+            background: var(--blue-lt)
+        }
+
+        .nores {
+            display: none;
+            text-align: center;
+            padding: 38px 20px
+        }
+
+        .nores svg {
+            width: 36px;
+            height: 36px;
+            margin-bottom: 10px
+        }
+
+        .nort {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--t2);
+            margin-bottom: 5px
+        }
+
+        .nors {
+            font-size: 13px;
+            color: var(--t3);
+            line-height: 1.6
+        }
+
+        .skel {
+            display: none
+        }
+
+        .sk {
+            background: #e4e9f8;
+            border-radius: var(--rxs);
+            animation: sk 1.3s ease-in-out infinite
+        }
+
+        @keyframes sk {
+
+            0%,
+            100% {
+                opacity: .45
+            }
+
+            50% {
+                opacity: .9
+            }
+        }
+
+        .res {
+            display: none;
+            animation: up .22s ease
+        }
+
+        @keyframes up {
+            from {
+                opacity: 0;
+                transform: translateY(9px)
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0)
+            }
+        }
+
+        /* Rate hero (Home view) */
+        .shero {
+            border-radius: var(--r);
+            padding: 22px 20px 18px;
+            margin-bottom: 10px;
+            color: #fff;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #3b5bdb, #4c6ef5);
+            box-shadow: 0 4px 24px rgba(59, 91, 219, .28);
+        }
+
+        .shero::before {
+            content: '';
+            position: absolute;
+            top: -35px;
+            right: -35px;
+            width: 130px;
+            height: 130px;
+            background: rgba(255, 255, 255, .09);
+            border-radius: 50%
+        }
+
+        .shero::after {
+            content: '';
+            position: absolute;
+            bottom: -25px;
+            left: -25px;
+            width: 90px;
+            height: 90px;
+            background: rgba(255, 255, 255, .06);
+            border-radius: 50%
+        }
+
+        .she {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: .8;
+            margin-bottom: 7px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+            z-index: 1
+        }
+
+        .she svg {
+            width: 13px;
+            height: 13px
+        }
+
+        .shnum {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 54px;
+            font-weight: 700;
+            line-height: 1;
+            letter-spacing: -2px;
+            margin-bottom: 3px;
+            position: relative;
+            z-index: 1
+        }
+
+        .shunit {
+            font-size: 13px;
+            opacity: .7;
+            margin-bottom: 14px;
+            position: relative;
+            z-index: 1
+        }
+
+        .shbot {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+            z-index: 1
+        }
+
+        .shbadge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(255, 255, 255, .2);
+            border: 1px solid rgba(255, 255, 255, .3);
+            border-radius: 20px;
+            padding: 4px 13px;
+            font-size: 12px;
+            font-weight: 700
+        }
+
+        .shsku {
+            margin-left: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(255, 255, 255, .15);
+            border: 1px solid rgba(255, 255, 255, .25);
+            padding: 4px 10px;
+            border-radius: var(--rxs)
+        }
+
+        .pcard {
+            background: var(--white);
+            border: 2px solid var(--border);
+            border-radius: var(--r);
+            padding: 15px 17px;
+            margin-bottom: 10px;
+            box-shadow: var(--sh);
+            display: flex;
+            align-items: center;
+            gap: 13px
+        }
+
+        .pav {
+            width: 48px;
+            height: 48px;
+            border-radius: 13px;
+            flex-shrink: 0;
+            background: var(--blue-lt);
+            border: 2px solid var(--blue-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--blue)
+        }
+
+        .pname {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--t1);
+            line-height: 1.3;
+            word-break: break-word
+        }
+
+        .psub {
+            font-size: 12px;
+            color: var(--t3);
+            margin-top: 3px
+        }
+
+        .igrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 8px;
+            margin-bottom: 10px
+        }
+
+        .ic {
+            background: var(--white);
+            border: 2px solid var(--border);
+            border-radius: var(--rsm);
+            padding: 13px;
+            box-shadow: var(--sh)
+        }
+
+        .iclbl {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            color: var(--t3);
+            margin-bottom: 7px
+        }
+
+        .icval {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--t1);
+            line-height: 1
+        }
+
+        .icval.blue {
+            color: var(--blue)
+        }
+
+        .icval.green {
+            color: var(--green)
+        }
+
+        .icval.sm {
+            font-size: 14px
+        }
+
+        .imgcard {
+            background: var(--white);
+            border: 2px solid var(--border);
+            border-radius: var(--r);
+            margin-bottom: 10px;
+            box-shadow: var(--sh);
+            overflow: hidden
+        }
+
+        .imgcard-hd {
+            padding: 10px 15px 9px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            color: var(--t3);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #fafbff
+        }
+
+        .imgcard-hd svg {
+            width: 12px;
+            height: 12px
+        }
+
+        .ai-badge {
+            margin-left: auto;
+            background: var(--blue-lt);
+            border: 1px solid var(--blue-md);
+            color: var(--blue);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: .5px;
+        }
+
+        .imgwrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 220px;
+            background: var(--blue-lt);
+            position: relative
+        }
+
+        .imgwrap img {
+            max-width: 100%;
+            max-height: 340px;
+            object-fit: contain;
+            display: block;
+            transition: opacity .4s;
+            opacity: 0
+        }
+
+        .imgwrap img.loaded {
+            opacity: 1
+        }
+
+        .img-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            color: var(--t3);
+            font-size: 12px;
+            padding: 40px 20px
+        }
+
+        .img-placeholder svg {
+            width: 36px;
+            height: 36px;
+            color: var(--border2)
+        }
+
+        .imgcard-foot {
+            padding: 9px 14px;
+            border-top: 1px solid var(--border)
+        }
+
+        .img-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--blue);
+            text-decoration: none
+        }
+
+        .img-link:hover {
+            text-decoration: underline
+        }
+
+        .img-link svg {
+            width: 12px;
+            height: 12px
+        }
+
+        /* Stock badge (Home view) */
+        .stock-card {
+            background: var(--white);
+            border: 2px solid var(--border);
+            border-radius: var(--rsm);
+            padding: 13px;
+            box-shadow: var(--sh);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 13px
+        }
+
+        .stock-card.in {
+            border-color: var(--green-md);
+            background: var(--green-lt)
+        }
+
+        .stock-card.out {
+            border-color: var(--red-md);
+            background: var(--red-lt)
+        }
+
+        .stock-card.na {
+            border-color: var(--amber-md);
+            background: var(--amber-lt)
+        }
+
+        .stock-ico {
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+            border-radius: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center
+        }
+
+        .stock-card.in .stock-ico {
+            background: var(--green-md)
+        }
+
+        .stock-card.out .stock-ico {
+            background: var(--red-md)
+        }
+
+        .stock-card.na .stock-ico {
+            background: var(--amber-md)
+        }
+
+        .stock-ico svg {
+            width: 18px;
+            height: 18px
+        }
+
+        .stock-card.in .stock-ico svg {
+            stroke: #065f46
+        }
+
+        .stock-card.out .stock-ico svg {
+            stroke: var(--red)
+        }
+
+        .stock-card.na .stock-ico svg {
+            stroke: var(--amber)
+        }
+
+        .stock-info {
+            flex: 1;
+            min-width: 0
+        }
+
+        .stock-lbl {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            margin-bottom: 4px
+        }
+
+        .stock-card.in .stock-lbl {
+            color: var(--green)
+        }
+
+        .stock-card.out .stock-lbl {
+            color: var(--red)
+        }
+
+        .stock-card.na .stock-lbl {
+            color: var(--amber)
+        }
+
+        .stock-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 4px
+        }
+
+        .stock-card.in .stock-val {
+            color: var(--green)
+        }
+
+        .stock-card.out .stock-val {
+            color: var(--red)
+        }
+
+        .stock-card.na .stock-val {
+            color: var(--amber)
+        }
+
+        .stock-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 9px;
+            border-radius: 20px
+        }
+
+        .stock-card.in .stock-tag {
+            background: rgba(12, 166, 120, .18);
+            color: #065f46
+        }
+
+        .stock-card.out .stock-tag {
+            background: rgba(201, 42, 42, .13);
+            color: var(--red)
+        }
+
+        .stock-card.na .stock-tag {
+            background: rgba(230, 119, 0, .15);
+            color: var(--amber)
+        }
+
+        .acts {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 4px;
+            flex-wrap: wrap
+        }
+
+        .act {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: var(--white);
+            border: 2px solid var(--border2);
+            border-radius: var(--rsm);
+            padding: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--t2);
+            cursor: pointer;
+            transition: all .15s;
+            font-family: 'Inter', sans-serif;
+            box-shadow: var(--sh);
+            min-width: 120px
+        }
+
+        .act:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+            background: var(--blue-lt)
+        }
+
+        .act svg {
+            width: 14px;
+            height: 14px
+        }
+
+        /* ── Catalog view ── */
+        .cat-toolbar {
+            background: var(--white);
+            border: 2px solid var(--border);
+            border-radius: var(--r);
+            box-shadow: var(--sh);
+            padding: 11px;
+            margin-bottom: 11px;
+        }
+
+        .cat-search-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 9px;
+            padding-bottom: 9px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .cat-search {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            background: var(--blue-lt);
+            border: 1.5px solid var(--border2);
+            border-radius: 26px;
+            padding: 7px 13px;
+            transition: all .15s;
+        }
+
+        .cat-search:focus-within {
+            border-color: var(--blue);
+            background: #f6f8ff
+        }
+
+        .cat-search svg {
+            width: 15px;
+            height: 15px;
+            color: var(--t3);
+            flex-shrink: 0
+        }
+
+        .cat-search input {
+            flex: 1;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            color: var(--t1);
+            min-width: 0;
+        }
+
+        .cat-search input::placeholder {
+            color: var(--t3)
+        }
+
+        .pdf-export-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--blue-lt);
+            border: 1.5px solid var(--blue-md);
+            color: var(--blue);
+            padding: 8px 15px;
+            border-radius: 26px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all .15s;
+            font-family: 'Inter', sans-serif;
+            flex-shrink: 0;
+        }
+
+        .pdf-export-btn:hover {
+            background: var(--blue);
+            color: #fff;
+            border-color: var(--blue)
+        }
+
+        .pdf-export-btn svg {
+            width: 14px;
+            height: 14px
+        }
+
+        .pdf-export-btn:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+            background: var(--blue-lt);
+            color: var(--blue)
+        }
+
+        /* Filter groups flow side by side on wide screens and wrap to their own
+           lines on narrow ones, instead of always stacking. */
+        .filt-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 7px 16px;
+        }
+
+        .filt-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            flex-wrap: wrap;
+        }
+
+        .filt-lbl {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--t3);
+            margin-right: 4px;
+            flex-shrink: 0;
+        }
+
+        .fpill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--white);
+            border: 1.5px solid var(--border2);
+            border-radius: 20px;
+            padding: 4px 11px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--t2);
+            cursor: pointer;
+            transition: all .15s;
+            user-select: none;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .fpill:hover {
+            border-color: var(--blue);
+            color: var(--blue)
+        }
+
+        .fpill.on {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: #fff
+        }
+
+        .fpill.on:hover {
+            background: var(--blue);
+            color: #fff
+        }
+
+        .cat-controls {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin-top: 9px;
+            padding-top: 9px;
+            border-top: 1px dashed var(--border);
+            flex-wrap: wrap;
+        }
+
+        .cat-select {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--white);
+            border: 1.5px solid var(--border2);
+            border-radius: 10px;
+            padding: 6px 11px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--t2);
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all .15s;
+        }
+
+        .cat-select:hover {
+            border-color: var(--blue)
+        }
+
+        .cat-select select {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--t2);
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            padding-right: 4px;
+            /* A select sizes to its longest option; without this, one long fit-type
+               name stretches the control and wraps the whole row. */
+            max-width: 140px;
+            text-overflow: ellipsis;
+        }
+
+        .cat-info {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--t3);
+        }
+
+        .cat-info b {
+            color: var(--t1);
+            font-weight: 700
+        }
+
+        .cat-grid-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--blue-lt);
+            border: 1px solid var(--blue-md);
+            color: var(--blue);
+            padding: 3px 9px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        /* ── Catalog grid ── */
+        .cat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 12px;
+        }
+
+        .cat-card {
+            background: var(--white);
+            border: 2px solid var(--border);
+            border-radius: var(--rsm);
+            box-shadow: var(--sh);
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            transition: all .15s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cat-card:hover {
+            border-color: var(--blue);
+            transform: translateY(-2px);
+            box-shadow: var(--sh2)
+        }
+
+        .cat-card.selected {
+            border-color: var(--blue);
+            background: var(--blue-lt)
+        }
+
+        .cat-card.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 7px;
+            right: 7px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--blue);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            box-shadow: 0 2px 6px rgba(59, 91, 219, .4);
+            z-index: 2;
+        }
+
+        .cat-img {
+            width: 100%;
+            aspect-ratio: 1;
+            background: var(--blue-lt);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .cat-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block
+        }
+
+        .cat-img-ph {
+            color: var(--t3);
+            font-size: 11px;
+            padding: 12px;
+            text-align: center
+        }
+
+        .cat-gen-badge {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            background: rgba(255, 255, 255, .95);
+            border: 1px solid var(--border2);
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--t2);
+            letter-spacing: .3px;
+            text-transform: uppercase;
+        }
+
+        /* Marks a card whose picture came from the Generated Image column. */
+        .cat-ai-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            background: rgba(59, 91, 219, .94);
+            border: 1px solid var(--blue);
+            color: #fff;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: .3px;
+        }
+
+        .cat-gen-badge.male {
+            background: #eef2ff;
+            color: #3b5bdb;
+            border-color: #bfcbff
+        }
+
+        .cat-gen-badge.a {
+            background: #fff0f9;
+            color: #c2255c;
+            border-color: #f8b4d9
+        }
+
+        .cat-gen-badge.b {
+            background: #fff8eb;
+            color: #e67700;
+            border-color: #ffd28a
+        }
+
+        .cat-body {
+            padding: 9px 10px 11px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 5px
+        }
+
+        .cat-key {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--t1);
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cat-style {
+            font-size: 11px;
+            color: var(--t3);
+            font-weight: 500;
+            flex-shrink: 0
+        }
+
+        /* Style on the left, fit type pulled right into the empty space beside it. */
+        .cat-line {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        /* Long values wrap onto extra lines instead of being cut off. */
+        .cat-type {
+            max-width: 66%;
+            background: #f2f5ff;
+            border: 1px solid var(--border);
+            color: var(--t2);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 9.5px;
+            font-weight: 700;
+            letter-spacing: .3px;
+            line-height: 1.3;
+            text-align: right;
+            overflow-wrap: anywhere;
+        }
+
+        .cat-meta {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: auto;
+            font-size: 11px;
+            flex-wrap: wrap;
+        }
+
+        .cat-rate {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--blue);
+            background: var(--blue-lt);
+            border: 1px solid var(--blue-md);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .cat-stock-tag {
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+
+        .cat-stock-tag.in {
+            background: var(--green-lt);
+            color: var(--green);
+            border: 1px solid var(--green-md)
+        }
+
+        .cat-stock-tag.out {
+            background: var(--red-lt);
+            color: var(--red);
+            border: 1px solid var(--red-md)
+        }
+
+        .cat-stock-tag.na {
+            background: var(--amber-lt);
+            color: var(--amber);
+            border: 1px solid var(--amber-md)
+        }
+
+        .cat-empty {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--t3);
+            font-size: 14px;
+        }
+
+        .cat-empty svg {
+            width: 50px;
+            height: 50px;
+            margin-bottom: 12px;
+            color: var(--border2)
+        }
+
+        /* Selection bar */
+        .sel-bar {
+            display: none;
+            position: sticky;
+            bottom: 14px;
+            z-index: 150;
+            margin: 14px auto 0;
+            max-width: fit-content;
+            background: var(--blue);
+            color: #fff;
+            border-radius: 30px;
+            padding: 10px 16px;
+            box-shadow: 0 8px 24px rgba(59, 91, 219, .4);
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .sel-bar.show {
+            display: inline-flex
+        }
+
+        .sel-bar-count {
+            background: rgba(255, 255, 255, .22);
+            padding: 3px 9px;
+            border-radius: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .sel-bar-btn {
+            background: #fff;
+            color: var(--blue);
+            border: none;
+            padding: 7px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .sel-bar-btn svg {
+            width: 12px;
+            height: 12px
+        }
+
+        .sel-bar-btn.clr {
+            background: rgba(255, 255, 255, .18);
+            color: #fff
+        }
+
+        /* ── PDF Modal (config + progress) ── */
+        .pdf-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: rgba(26, 31, 61, .6);
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+
+        .pdf-modal.show {
+            display: flex
+        }
+
+        .pdf-box {
+            background: var(--white);
+            border-radius: var(--r);
+            padding: 22px;
+            max-width: 440px;
+            width: 100%;
+            box-shadow: 0 14px 50px rgba(0, 0, 0, .25);
+            max-height: 92vh;
+            overflow-y: auto;
+        }
+
+        .pdf-hd {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            margin-bottom: 16px;
+            padding-bottom: 13px;
+            border-bottom: 1.5px solid var(--border);
+        }
+
+        .pdf-hd-ico {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: var(--blue);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .pdf-hd-ico svg {
+            width: 22px;
+            height: 22px
+        }
+
+        .pdf-hd-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--t1)
+        }
+
+        .pdf-hd-sub {
+            font-size: 12px;
+            color: var(--t3);
+            margin-top: 2px
+        }
+
+        .pdf-section {
+            margin-bottom: 16px
+        }
+
+        .pdf-section-lbl {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            color: var(--t3);
+            margin-bottom: 8px;
+        }
+
+        .pdf-layout-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .pdf-layout-opt {
+            border: 2px solid var(--border2);
+            border-radius: var(--rsm);
+            padding: 12px 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all .15s;
+            background: var(--white);
+        }
+
+        .pdf-layout-opt:hover {
+            border-color: var(--blue)
+        }
+
+        .pdf-layout-opt.on {
+            border-color: var(--blue);
+            background: var(--blue-lt);
+            color: var(--blue)
+        }
+
+        .pdf-layout-num {
+            font-size: 22px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--t1);
+            line-height: 1
+        }
+
+        .pdf-layout-opt.on .pdf-layout-num {
+            color: var(--blue)
+        }
+
+        .pdf-layout-txt {
+            font-size: 10px;
+            color: var(--t3);
+            margin-top: 4px;
+            font-weight: 600
+        }
+
+        .pdf-layout-opt.on .pdf-layout-txt {
+            color: var(--blue)
+        }
+
+        .pdf-fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .pdf-field-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 11px;
+            background: #fafbff;
+            border: 1.5px solid var(--border);
+            border-radius: var(--rsm);
+            cursor: pointer;
+            transition: all .15s;
+            user-select: none;
+        }
+
+        .pdf-field-row:hover {
+            border-color: var(--blue-md);
+            background: var(--blue-lt)
+        }
+
+        .pdf-field-row input {
+            accent-color: var(--blue);
+            cursor: pointer;
+            width: 15px;
+            height: 15px
+        }
+
+        .pdf-field-row label {
+            font-size: 12px;
+            color: var(--t2);
+            font-weight: 600;
+            cursor: pointer;
+            flex: 1
+        }
+
+        .pdf-bar-wrap {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 6px
+        }
+
+        .pdf-bar {
+            height: 100%;
+            background: var(--blue);
+            width: 0%;
+            transition: width .3s ease;
+            border-radius: 4px
+        }
+
+        .pdf-progress-txt {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--t3);
+            font-weight: 600;
+            text-align: center
+        }
+
+        .pdf-progress {
+            display: none
+        }
+
+        .pdf-progress.show {
+            display: block
+        }
+
+        .pdf-config {
+            display: block
+        }
+
+        .pdf-config.hide {
+            display: none
+        }
+
+        .pdf-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 18px;
+            justify-content: flex-end
+        }
+
+        .pdf-btn {
+            padding: 9px 18px;
+            border-radius: var(--rsm);
+            border: 2px solid var(--border2);
+            background: var(--white);
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--t2);
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all .15s;
+        }
+
+        .pdf-btn:hover {
+            border-color: var(--blue);
+            color: var(--blue)
+        }
+
+        .pdf-btn.primary {
+            background: var(--blue);
+            color: #fff;
+            border-color: var(--blue);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pdf-btn.primary:hover {
+            background: #2a4ac8;
+            color: #fff
+        }
+
+        .pdf-btn.primary:disabled {
+            opacity: .5;
+            cursor: not-allowed
+        }
+
+        .pdf-btn svg {
+            width: 14px;
+            height: 14px
+        }
+
+        .ftr {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 16px;
+            font-size: 11px;
+            color: var(--t3);
+            border-top: 1px solid var(--border)
+        }
+
+        @media(max-width:600px) {
+            .hh1 {
+                font-size: 20px
+            }
+
+            .shnum {
+                font-size: 40px
+            }
+
+            .igrid {
+                grid-template-columns: 1fr 1fr
+            }
+
+            .wrap {
+                padding: 10px 12px 60px
+            }
+
+            .hname {
+                font-size: 13px
+            }
+
+            .hpill {
+                font-size: 10px;
+                padding: 4px 8px
+            }
+
+            .shero {
+                padding: 18px 16px 14px
+            }
+
+            .shnum {
+                font-size: 36px
+            }
+
+            .htools {
+                gap: 5px
+            }
+
+            .htool {
+                font-size: 10px;
+                padding: 3px 7px
+            }
+
+            .htxt {
+                display: none
+            }
+
+            /* Header wraps to a second line rather than squeezing the controls. */
+            .hdr {
+                height: auto;
+                flex-wrap: wrap;
+                padding: 6px 10px;
+                gap: 6px
+            }
+
+            .t-long {
+                display: none
+            }
+
+            /* Icon-only refresh — the circular arrow reads fine on its own. */
+            .hrefresh .rlbl {
+                display: none
+            }
+
+            .tab {
+                padding: 5px 12px
+            }
+
+            .cat-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px
+            }
+
+            /* 2-up cards are too narrow to sit the type beside the style —
+               give it its own full-width line so it wraps in 1-2 lines, not 4. */
+            .cat-line {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 3px
+            }
+
+            .cat-type {
+                max-width: 100%;
+                text-align: left
+            }
+
+            .cat-search-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 9px
+            }
+
+            .pdf-export-btn {
+                justify-content: center
+            }
+
+            .cat-controls {
+                gap: 7px
+            }
+
+            /* Two dropdowns per row instead of one, so they don't push the grid offscreen. */
+            .cat-select {
+                flex: 1 1 calc(50% - 4px);
+                justify-content: space-between;
+                min-width: 0
+            }
+
+            .cat-select select {
+                min-width: 0;
+                text-align: right
+            }
+
+            .cat-info {
+                margin-left: 0;
+                width: 100%;
+                justify-content: space-between
+            }
+
+            .pdf-fields {
+                grid-template-columns: 1fr
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="hdr">
+        <div class="hlogo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <path d="M3 9h18M9 21V9" />
+            </svg>
+        </div>
+        <div class="htxt">
+            <div class="hname">Item Image Lookup</div>
+            <div class="hsub">Live image &amp; price details</div>
+        </div>
+        <div class="seg">
+            <div class="tab on" data-tab="home">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+                Home
+            </div>
+            <div class="tab" data-tab="stock">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7" />
+                    <rect x="14" y="3" width="7" height="7" />
+                    <rect x="14" y="14" width="7" height="7" />
+                    <rect x="3" y="14" width="7" height="7" />
+                </svg>
+                <span class="t-long">Available </span>Stock
+            </div>
+        </div>
+        <div class="htools" id="catHeaderTools" style="display:none">
+            <span class="htool" id="hideStockBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                </svg>
+                <span id="hideStockTxt">Hide Stock</span>
+            </span>
+            <span class="htool" id="hideGenderBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                </svg>
+                <span id="hideGenderTxt">Hide Gender</span>
+            </span>
+        </div>
+        <span class="htool hrefresh" id="refreshBtn" title="Refresh data from the sheet">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"
+                stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-.42-4" />
+            </svg>
+            <span class="rlbl">Refresh</span>
+        </span>
+        <div class="hpill" id="pill">
+            <span class="hdot"></span>
+            <span id="pillTxt">Loading…</span>
+        </div>
+    </header>
+
+    <!-- ═══════ HOME VIEW ═══════ -->
+    <main class="wrap" id="homeView">
+        <div class="hero" id="heroSec">
+            <div class="htag">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+                Real-time from Google Sheets
+            </div>
+            <h1 class="hh1">Find <b>item image</b><br>by unique key instantly</h1>
+            <p class="hp">Type a unique key or style number — get rate, size &amp; full image from your sheet in
+                seconds.</p>
+        </div>
+
+        <div class="sc" id="sCard">
+            <div class="si">
+                <span class="sico">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                </span>
+                <input class="sinp" id="sinp" type="text" placeholder="e.g. 3152 28X32 or 4152…" autocomplete="off"
+                    autocorrect="off" autocapitalize="characters" spellcheck="false" />
+                <button class="sclr" id="sclr">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="dd" id="dd"></div>
+        </div>
+
+        <div class="sts load" id="sts"><span class="spn"></span>&nbsp;Connecting to sheet…</div>
+
+        <div class="empt" id="empt">
+            <div class="ebox">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#8a93c0" stroke-width="1.5" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="3" />
+                    <path d="M3 9h18M9 21V9" />
+                </svg>
+            </div>
+            <div class="et">Search a product above</div>
+            <div class="es">Enter unique key or style number<br>to see rate, size &amp; item image</div>
+            <div class="chips" id="chips"></div>
+        </div>
+
+        <div class="nores" id="nores">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ffc9c9" stroke-width="1.5" stroke-linecap="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                <line x1="8" y1="11" x2="14" y2="11" />
+            </svg>
+            <div class="nort">No products found</div>
+            <div class="nors" id="norsmsg">Try a different key or keyword</div>
+        </div>
+
+        <div class="skel" id="skel">
+            <div
+                style="background:var(--white);border:2px solid var(--border);border-radius:var(--r);padding:22px;margin-bottom:10px">
+                <div class="sk" style="height:12px;width:100px;margin-bottom:10px"></div>
+                <div class="sk" style="height:48px;width:150px;margin-bottom:8px"></div>
+                <div class="sk" style="height:22px;width:160px"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+                <div class="sk" style="height:76px;border-radius:var(--rsm)"></div>
+                <div class="sk" style="height:76px;border-radius:var(--rsm)"></div>
+            </div>
+            <div class="sk" style="height:260px;border-radius:var(--r)"></div>
+        </div>
+
+        <div class="res" id="res"></div>
+    </main>
+
+    <!-- ═══════ STOCK VIEW (Catalog) ═══════ -->
+    <main class="wrap wide" id="stockView" style="display:none">
+        <div class="cat-toolbar">
+            <div class="cat-search-row">
+                <div class="cat-search">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <input id="catSearch" type="text" placeholder="Search catalog by key, style, size…" />
+                </div>
+                <button class="pdf-export-btn" id="exportPdfBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Export PDF Report
+                </button>
+            </div>
+
+            <div class="filt-wrap">
+            <div class="filt-row">
+                <span class="filt-lbl">Stock:</span>
+                <span class="fpill on" data-stk="all">All <span id="cf-stk-all">0</span></span>
+                <span class="fpill" data-stk="ge10">≥ 10 <span id="cf-stk-10">0</span></span>
+                <span class="fpill" data-stk="ge30">≥ 30 <span id="cf-stk-30">0</span></span>
+                <span class="fpill" data-stk="ge50">≥ 50 <span id="cf-stk-50">0</span></span>
+                <span class="fpill" data-stk="out">Out <span id="cf-stk-out">0</span></span>
+                <span class="fpill" data-stk="na">N/A <span id="cf-stk-na">0</span></span>
+            </div>
+
+            <div class="filt-row">
+                <span class="filt-lbl">Gender:</span>
+                <span class="fpill on" data-gen="all">All Stock <span id="cf-gen-all">0</span></span>
+                <span class="fpill" data-gen="Male">Men <span id="cf-gen-male">0</span></span>
+                <span class="fpill" data-gen="Ladies">Ladies <span id="cf-gen-ladies">0</span></span>
+            </div>
+
+            <div class="filt-row" id="ladiesSubFilt" style="display:none">
+                <span class="filt-lbl">Ladies Cat:</span>
+                <span class="fpill on" data-sub="all">Both A &amp; B</span>
+                <span class="fpill" data-sub="A">Category A <span id="cf-sub-a">0</span></span>
+                <span class="fpill" data-sub="B">Category B <span id="cf-sub-b">0</span></span>
+            </div>
+            </div>
+
+            <div class="cat-controls">
+                <div class="cat-select">
+                    <span
+                        style="color:var(--t3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Size:</span>
+                    <select id="catSizeSel">
+                        <option value="all">All Sizes</option>
+                    </select>
+                </div>
+                <div class="cat-select">
+                    <span
+                        style="color:var(--t3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Type:</span>
+                    <select id="catTypeSel">
+                        <option value="all">All Types</option>
+                    </select>
+                </div>
+                <div class="cat-select">
+                    <span
+                        style="color:var(--t3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Image:</span>
+                    <select id="catImgSel">
+                        <option value="normal">Normal</option>
+                    </select>
+                </div>
+                <div class="cat-select">
+                    <span
+                        style="color:var(--t3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Status:</span>
+                    <select id="catStatusSel">
+                        <option value="all">All</option>
+                        <option value="in">In Stock</option>
+                        <option value="out">Out of Stock</option>
+                        <option value="na">Not Updated</option>
+                    </select>
+                </div>
+                <div class="cat-select">
+                    <span
+                        style="color:var(--t3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Sort:</span>
+                    <select id="catSortSel">
+                        <option value="default">Default</option>
+                        <option value="rate-asc">Rate: Low → High</option>
+                        <option value="rate-desc">Rate: High → Low</option>
+                        <option value="stock-desc">Stock: High → Low</option>
+                        <option value="stock-asc">Stock: Low → High</option>
+                        <option value="key-asc">Key A→Z</option>
+                        <option value="key-desc">Key Z→A</option>
+                        <option value="recent">Recently Added</option>
+                    </select>
+                </div>
+                <div class="cat-info">
+                    <span>Showing <b id="catShowingTxt">0</b> of <b id="catTotalTxt">0</b> items</span>
+                    <span class="cat-grid-badge">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+                            style="width:11px;height:11px">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        Catalog Grid
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="cat-grid" id="catGrid"></div>
+
+        <div class="sel-bar" id="selBar">
+            <span class="sel-bar-count" id="selCount">0 selected</span>
+            <span>for PDF export</span>
+            <button class="sel-bar-btn clr" id="clearSelBtn">Clear</button>
+            <button class="sel-bar-btn" id="genPdfFromSelBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                </svg>
+                Make PDF
+            </button>
+        </div>
+    </main>
+
+    <!-- ═══════ PDF Modal ═══════ -->
+    <div class="pdf-modal" id="pdfModal">
+        <div class="pdf-box">
+            <div class="pdf-hd">
+                <div class="pdf-hd-ico">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="pdf-hd-title" id="pdfHdTitle">Export PDF Catalog</div>
+                    <div class="pdf-hd-sub" id="pdfHdSub">Choose layout &amp; fields to include</div>
+                </div>
+            </div>
+
+            <!-- Configuration step -->
+            <div class="pdf-config" id="pdfConfig">
+                <div class="pdf-section">
+                    <div class="pdf-section-lbl">Items per page</div>
+                    <div class="pdf-layout-grid">
+                        <div class="pdf-layout-opt" data-perpage="1">
+                            <div class="pdf-layout-num">1</div>
+                            <div class="pdf-layout-txt">Extra Large</div>
+                        </div>
+                        <div class="pdf-layout-opt on" data-perpage="2">
+                            <div class="pdf-layout-num">2</div>
+                            <div class="pdf-layout-txt">Large</div>
+                        </div>
+                        <div class="pdf-layout-opt" data-perpage="4">
+                            <div class="pdf-layout-num">4</div>
+                            <div class="pdf-layout-txt">Compact</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pdf-section">
+                    <div class="pdf-section-lbl">Show on each item</div>
+                    <div class="pdf-fields">
+                        <label class="pdf-field-row">
+                            <input type="checkbox" id="fld-key" checked>
+                            <span>Unique Key</span>
+                        </label>
+                        <label class="pdf-field-row">
+                            <input type="checkbox" id="fld-style" checked>
+                            <span>Style No.</span>
+                        </label>
+                        <label class="pdf-field-row">
+                            <input type="checkbox" id="fld-size" checked>
+                            <span>Size</span>
+                        </label>
+                        <label class="pdf-field-row">
+                            <input type="checkbox" id="fld-rate" checked>
+                            <span>Rate / Price</span>
+                        </label>
+                        <label class="pdf-field-row">
+                            <input type="checkbox" id="fld-stock" checked>
+                            <span>Stock Status</span>
+                        </label>
+                        <label class="pdf-field-row">
+                            <input type="checkbox" id="fld-gender" checked>
+                            <span>Gender Badge</span>
+                        </label>
+                        <label class="pdf-field-row">
+                            <input type="checkbox" id="fld-type" checked>
+                            <span>Stock Type</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="pdf-actions">
+                    <button class="pdf-btn" onclick="closePdfModal()">Cancel</button>
+                    <button class="pdf-btn primary" id="pdfStartBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        Generate PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Progress step -->
+            <div class="pdf-progress" id="pdfProgress">
+                <div class="pdf-section">
+                    <div class="pdf-section-lbl" id="pdfProgLbl">Downloading images…</div>
+                    <div class="pdf-bar-wrap">
+                        <div class="pdf-bar" id="pdfBar"></div>
+                    </div>
+                    <div class="pdf-progress-txt" id="pdfProgTxt">0 / 0</div>
+                </div>
+                <div class="pdf-actions" id="pdfDoneActions" style="display:none">
+                    <button class="pdf-btn primary" onclick="closePdfModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="ftr"><span id="ftrTxt">Connecting…</span></footer>
+
+    <script>
+        /* ═════════ State & Config ═════════ */
+        /* Primary is the direct echo URL — it skips the /exec 302 hop, so it loads
+           faster. /exec is kept as a fallback: echo user_content_keys can expire,
+           and when that happens the stable deployment URL still answers. */
+        const API = 'https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnQH066TF7XoemdLydIxtnvREVww1ZGlMBe54SHOhzubtNrtoRCgJnWbSR_3j-6JdPYufiU_3WmyAUFn6xzBWwjcwmUERc8AkZ5VJC9zA-nOZkbs8sLTqUS3u_xgPCeX74GPRcUWfjhTswiFbwK5DWHHqmb-napVoC6IepnfQ29LmXrsVJIW6zmywT9wMa5xEGvAwoRELltk2Rj5_WqhGTLCfJP0NnoFcESmg3Y9l0xuHiZzohKQNwOi1IxK5iW9DdsA_fE-LU6OzSWUMAx9NI1T49X6lg&lib=MpdQI8CjfD6mCF_zcE0hY0yU-P2DTP4Ui';
+        const API_FALLBACK = 'https://script.google.com/macros/s/AKfycbzKfmTraX3IsP7sG2xIawetAxSOInlUEEdFVYEzS33Q_REudEtSYL1jhdRv6GrltXg3/exec';
+
+        let COL = {
+            key: 'Unique key', timestamp: 'Timestamp', styleNo: 'Style No.',
+            size: 'Size', rate: 'Rate', image: 'Image Upload',
+            group: 'Group A & B', generated: 'Generated Image',
+            stock: 'Stock', stockType: 'Stock Type'
+        };
+
+        let products = [], hits = [], activeIdx = -1, lastQ = '';
+        let currentTab = 'home';
+        // img defaults to 'normal' — today every row has an uploaded photo, so this
+        // shows all 300 until Generated Image cells start being filled in.
+        let catFilters = { stock: 'all', gender: 'all', sub: 'all', size: 'all', type: 'all', img: 'normal', status: 'all', sort: 'default', search: '' };
+        let selected = new Set();
+        let hideStock = false, hideGender = false;
+        let pdfPerPage = 2;
+
+        /* ═════════ Drive image URL ═════════ */
+        function driveImg(url) {
+            if (!url) return null;
+            const m = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+            if (m) return `https://lh3.googleusercontent.com/d/${m[1]}`;
+            const m2 = url.match(/id=([a-zA-Z0-9_-]{10,})/);
+            if (m2) return `https://lh3.googleusercontent.com/d/${m2[1]}`;
+            return null;
+        }
+
+        /* ═════════ Cache ═════════
+           Cached rows paint immediately, then a network fetch runs in parallel and
+           swaps in fresher data when it lands. No polling — a refresh happens only
+           on page load or an explicit click. */
+        const CACHE_KEY = 'iil_cache_v1';
+        let lastRaw = '';        // JSON of the rows currently in `products`
+        let dataTs = 0;          // when those rows were fetched
+        let fromCache = false;
+        let checking = false;
+        let offline = false;
+
+        function readCache() {
+            try {
+                const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+                return (c && Array.isArray(c.data) && c.data.length) ? c : null;
+            } catch (e) { return null; }
+        }
+        function writeCache(data) {
+            try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data }));
+            } catch (e) { /* quota or private mode — the cache is optional */ }
+        }
+        function agoTxt(ts) {
+            if (!ts) return '';
+            const s = Math.round((Date.now() - ts) / 1000);
+            if (s < 60) return 'just now';
+            if (s < 3600) return Math.floor(s / 60) + ' min ago';
+            if (s < 86400) return Math.floor(s / 3600) + ' hr ago';
+            return new Date(ts).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+        }
+
+        function paintStatus() {
+            const pill = document.getElementById('pill');
+            const btn = document.getElementById('refreshBtn');
+            const n = products.length;
+            pill.classList.toggle('live', n > 0 && !fromCache && !offline);
+            pill.classList.toggle('stale', n > 0 && (fromCache || offline));
+            btn.classList.toggle('spin', checking);
+            document.getElementById('pillTxt').textContent =
+                checking && !n ? 'Loading…' : (n ? n + ' items' : 'No data');
+
+            let ftr;
+            if (!n) ftr = checking ? 'Connecting…' : 'Connection failed';
+            else if (offline) ftr = `Offline · showing cached data · updated ${agoTxt(dataTs)}`;
+            else if (checking) ftr = `${n} items · checking for updates…`;
+            else ftr = `${fromCache ? 'Cached' : 'Live'} data · ${n} items · updated ${agoTxt(dataTs)}`;
+            document.getElementById('ftrTxt').textContent = ftr;
+        }
+
+        /* ═════════ Data load ═════════ */
+        // `raw` must be the JSON of `rows` taken BEFORE __uid is stamped on below,
+        // otherwise the next comparison never matches and the view rebuilds every time.
+        function applyData(rows, raw) {
+            if (rows.length > 0) {
+                const sample = rows[0];
+                const allKeys = Object.keys(sample);
+                // Exact header match wins over a substring hit, so near-identical
+                // headers ("Stock" vs "Stock Type") can't shadow each other.
+                const find = (patterns) => {
+                    for (const p of patterns) {
+                        const lp = p.toLowerCase();
+                        const exact = allKeys.find(x => x.toLowerCase().trim() === lp);
+                        if (exact) return exact;
+                        const k = allKeys.find(x => x.toLowerCase().includes(lp));
+                        if (k) return k;
+                    }
+                    return null;
+                };
+                COL = {
+                    key: find(['unique key', 'unique']) || allKeys[0],
+                    timestamp: find(['timestamp', 'time']) || allKeys[1],
+                    styleNo: find(['style no', 'style']) || allKeys[2],
+                    size: find(['size']) || allKeys[3],
+                    rate: find(['rate', 'price']) || allKeys[4],
+                    image: find(['image upload', 'image']) || allKeys[5],
+                    group: find(['group', 'gender', 'category']) || allKeys[6],
+                    generated: find(['generated image', 'generated']) || 'Generated Image',
+                    stock: find(['stock']) || allKeys[8] || 'Stock',
+                    stockType: find(['stock type', 'type']) || 'Stock Type'
+                };
+                products = rows.filter(r => r[COL.key] && String(r[COL.key]).trim() !== '');
+                products.forEach((r, i) => { r.__uid = i; });
+            } else {
+                products = [];
+            }
+            // __uid is the row index, so it only stays valid for this data set.
+            selected.clear();
+            lastRaw = raw || JSON.stringify(rows);
+
+            document.getElementById('chips').innerHTML =
+                products.slice(0, 6).map(r => `<div class="chip" onclick="fill('${r[COL.key]}')">${r[COL.key]}</div>`).join('');
+
+            updateCatFilterCounts();
+            if (currentTab === 'stock') renderCatalog();
+        }
+
+        /* Apps Script 302-redirects /exec to googleusercontent, and that hop
+           intermittently 404s or stalls. One failure shouldn't kill the page, so
+           retry a few times with a growing pause before giving up. */
+        const TRIES = 3;
+        const REQ_TIMEOUT = 15000;    // generous: a slow answer still beats a false abort
+
+        function fetchJson(url) {
+            const ctl = new AbortController();
+            const timer = setTimeout(() => ctl.abort(), REQ_TIMEOUT);
+            return fetch(url, { cache: 'no-store', signal: ctl.signal })
+                .then(async res => {
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const json = await res.json();
+                    if (!json || !Array.isArray(json.data)) throw new Error('Invalid format');
+                    return json.data;
+                })
+                .finally(() => clearTimeout(timer));
+        }
+
+        async function fetchRows(onAttempt) {
+            let lastErr;
+            for (let i = 1; i <= TRIES; i++) {
+                if (onAttempt) onAttempt(i);
+                // The /exec deployment is only worth trying as a last resort — it is
+                // slower, and pointless to hit while the fast URL is merely blipping.
+                const urls = i === TRIES ? [API, API_FALLBACK] : [API];
+                for (const url of urls) {
+                    try {
+                        return await fetchJson(url);
+                    } catch (e) {
+                        lastErr = e;
+                        const via = url.includes('/macros/echo') ? 'echo' : 'exec';
+                        console.warn(`sheet fetch ${i}/${TRIES} via ${via} failed:`, e.message);
+                    }
+                }
+                if (i < TRIES) await new Promise(r => setTimeout(r, 800 * i));
+            }
+            throw lastErr;
+        }
+
+        /* Fetch fresh rows. Runs in parallel with the cached view already on screen. */
+        async function refresh() {
+            if (checking) return;               // guard double-click / double-fire
+            checking = true;
+            const hadData = products.length > 0;
+            paintStatus();
+            try {
+                const rows = await fetchRows(i => {
+                    if (hadData) return;        // cached view is up; stay quiet
+                    setSts(`<span class="spn"></span>&nbsp;Connecting to sheet…${i > 1 ? ` (retry ${i - 1} of ${TRIES - 1})` : ''}`, 'load');
+                });
+
+                const incoming = JSON.stringify(rows);
+                const changed = incoming !== lastRaw;
+                // Cache while the rows are still clean — applyData stamps __uid on them.
+                writeCache(rows);
+                // Re-rendering identical data would needlessly drop the user's selection.
+                if (changed) applyData(rows, incoming);
+                dataTs = Date.now();
+                fromCache = false;
+                offline = false;
+                setSts(changed && hadData ? '✓ Updated with latest sheet data' : '', changed && hadData ? 'ok' : '');
+                if (changed && hadData) setTimeout(() => setSts('', ''), 2500);
+            } catch (e) {
+                console.error(e);
+                offline = true;
+                if (products.length) {
+                    // Keep the cached view up rather than wiping it on a blip.
+                    setSts(`⚠ Couldn't reach the sheet — showing cached data`, 'err');
+                    setTimeout(() => setSts('', ''), 4000);
+                } else {
+                    setSts(`⚠ Couldn't reach the sheet after ${TRIES} tries (${e.message}). Check your internet, then press Refresh.`, 'err');
+                }
+            } finally {
+                checking = false;
+                paintStatus();
+            }
+        }
+
+        // The "Refresh data" button uses onclick="load()", so keep that name working.
+        function load() { refresh(); }
+
+        /* Paint cached rows straight away, then revalidate over the network. */
+        function boot() {
+            const c = readCache();
+            if (c) {
+                applyData(c.data, JSON.stringify(c.data));
+                dataTs = c.savedAt;
+                fromCache = true;
+                setSts('', '');   // rows are already on screen; drop the static "Connecting…"
+            }
+            paintStatus();
+            refresh();
+        }
+
+        function fill(v) {
+            const el = document.getElementById('sinp');
+            el.value = v; el.dispatchEvent(new Event('input')); el.focus();
+        }
+        function setSts(html, cls) {
+            const el = document.getElementById('sts');
+            el.innerHTML = html; el.className = 'sts ' + (cls || '');
+        }
+
+        /* ═════════ Fuzzy search ═════════ */
+        function fuzz(str, q) {
+            if (!str) return 0;
+            const s = String(str).toLowerCase().trim();
+            const query = q.toLowerCase().trim();
+            if (!query) return 0;
+            if (s === query) return 100;
+            if (s.startsWith(query)) return 91;
+            if (s.includes(query)) return 77;
+            let sc = 0, qi = 0;
+            for (let si = 0; si < s.length && qi < query.length; si++)
+                if (s[si] === query[qi]) { sc += (qi === si ? 3 : 1); qi++; }
+            return qi < query.length ? 0 : Math.round(sc / (query.length * 3) * 54);
+        }
+        function hl(str, q) {
+            if (!q || !str) return String(str ?? '');
+            return String(str).replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'), '<mark>$1</mark>');
+        }
+        function search(q) {
+            return products.map(r => ({
+                row: r,
+                sc: Math.max(fuzz(r[COL.key], q) * 1.6, fuzz(r[COL.styleNo], q))
+            })).filter(x => x.sc > 22).sort((a, b) => b.sc - a.sc).slice(0, 15);
+        }
+
+        /* ═════════ HOME view: dropdown & result ═════════ */
+        function renderDD(res, q) {
+            const dd = document.getElementById('dd');
+            if (!res.length) { dd.style.display = 'none'; return; }
+            dd.innerHTML = `<div class="ddhd">${res.length} result${res.length > 1 ? 's' : ''} found</div>` +
+                res.map((r, i) => {
+                    const rate = r.row[COL.rate];
+                    const stockRaw = r.row[COL.stock];
+                    let stockBadge = '';
+                    if (stockRaw === '' || stockRaw === null || stockRaw === undefined) {
+                        stockBadge = `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--amber-lt);color:var(--amber);border:1px solid var(--amber-md);flex-shrink:0">?</span>`;
+                    } else if (Number(stockRaw) === 0) {
+                        stockBadge = `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--red-lt);color:var(--red);border:1px solid var(--red-md);flex-shrink:0">Out</span>`;
+                    } else {
+                        stockBadge = `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--green-lt);color:var(--green);border:1px solid var(--green-md);flex-shrink:0">${Number(stockRaw)}</span>`;
+                    }
+                    return `<div class="ddr${i === activeIdx ? ' on' : ''}" data-i="${i}">
+            <span class="dsku">${hl(r.row[COL.key], q)}</span>
+            <span class="dnm">${hl(r.row[COL.size], q)} · Style ${hl(String(r.row[COL.styleNo]), q)}</span>
+            ${rate ? `<span class="drate">₹${rate}</span>` : ''}
+            ${stockBadge}
+          </div>`;
+                }).join('');
+            dd.style.display = 'block';
+            dd.querySelectorAll('.ddr').forEach((el, i) =>
+                el.addEventListener('mousedown', e => { e.preventDefault(); pick(res[i].row); }));
+        }
+
+        function pick(row) {
+            document.getElementById('sinp').value = row[COL.key] || '';
+            document.getElementById('dd').style.display = 'none';
+            document.getElementById('sclr').style.display = 'flex';
+            document.getElementById('heroSec').style.display = 'none';
+            ['empt', 'nores', 'res'].forEach(id => document.getElementById(id).style.display = 'none');
+            document.getElementById('skel').style.display = 'block';
+            setSts('', ''); activeIdx = -1;
+            setTimeout(() => { document.getElementById('skel').style.display = 'none'; renderResult(row); }, 220);
+        }
+
+        /* One image card — used for the uploaded photo and the AI-generated one. */
+        const PIC_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+        const PIC_PH = `<div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>No image available</div>`;
+
+        function imgCard({ id, title, url, src, badge }) {
+            return `<div class="imgcard"><div class="imgcard-hd">${PIC_SVG}${title}${badge || ''}</div>
+          <div class="imgwrap" id="${id}">${src ? `<img src="${src}" alt="${title}" onload="this.classList.add('loaded')" onerror="imgErr('${id}')">` : PIC_PH}</div>
+          ${url ? `<div class="imgcard-foot"><a class="img-link" href="${url}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Open in Google Drive</a></div>` : ''}
+        </div>`;
+        }
+
+        function renderResult(row) {
+            const rate = row[COL.rate] ?? '';
+            const styleNo = row[COL.styleNo] ?? '—';
+            const size = row[COL.size] ?? '—';
+            const uniqueKey = row[COL.key] ?? '—';
+            const imageUrl = row[COL.image] ?? '';
+            const imgSrc = driveImg(imageUrl);
+            const genUrl = row[COL.generated] ?? '';
+            const genSrc = driveImg(genUrl);
+            const stockRaw = row[COL.stock];
+
+            let stockState, stockLabel, stockNum, stockTag;
+            if (stockRaw === '' || stockRaw === null || stockRaw === undefined) {
+                stockState = 'na'; stockLabel = 'Stock'; stockNum = '—'; stockTag = 'Not Updated';
+            } else if (Number(stockRaw) === 0) {
+                stockState = 'out'; stockLabel = 'Stock'; stockNum = '0'; stockTag = 'Out of Stock';
+            } else {
+                stockState = 'in'; stockLabel = 'Stock'; stockNum = Number(stockRaw).toLocaleString(); stockTag = 'In Stock';
+            }
+            const stockIcons = {
+                in: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>`,
+                out: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+                na: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
+            };
+            const initials = String(styleNo).toUpperCase();
+            let html = '';
+
+            html += `<div class="shero">
+        <div class="she"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Rate / Price</div>
+        <div class="shnum">₹${rate !== '' ? Number(rate).toLocaleString() : '—'}</div>
+        <div class="shunit">Per Unit</div>
+        <div class="shbot"><div class="shbadge">✓ Item Found</div><div class="shsku">${uniqueKey}</div></div>
+      </div>`;
+            html += `<div class="pcard"><div class="pav">${initials}</div><div><div class="pname">${uniqueKey}</div><div class="psub">Style No: ${styleNo}</div></div></div>`;
+            html += `<div class="igrid">
+        <div class="ic"><div class="iclbl">Style No.</div><div class="icval blue">${styleNo}</div></div>
+        <div class="ic"><div class="iclbl">Size</div><div class="icval green sm">${size}</div></div>
+      </div>`;
+            html += `<div class="stock-card ${stockState}"><div class="stock-ico">${stockIcons[stockState]}</div><div class="stock-info"><div class="stock-lbl">${stockLabel}</div><div class="stock-val">${stockNum}</div><div class="stock-tag">${stockTag}</div></div></div>`;
+            if (imgSrc || imageUrl) {
+                html += imgCard({ id: 'imgwrap', title: 'Item Image', url: imageUrl, src: imgSrc });
+            }
+            // Separate section — only appears once the sheet's Generated Image cell is filled.
+            if (genSrc || genUrl) {
+                html += imgCard({
+                    id: 'genwrap', title: 'AI Generated Image', url: genUrl, src: genSrc,
+                    badge: `<span class="ai-badge">AI</span>`
+                });
+            }
+            html += `<div class="acts">
+        <button class="act" onclick="load()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.42-4"/></svg>Refresh data</button>
+        <button class="act" onclick="copyRow()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy details</button>
+      </div>`;
+            const el = document.getElementById('res');
+            el.innerHTML = html; el.style.display = 'block';
+            el.dataset.row = JSON.stringify(row);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.imgErr = function (id) {
+            const w = document.getElementById(id || 'imgwrap');
+            if (w) w.innerHTML = `<div class="img-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Image unavailable — open Drive link below</div>`;
+        };
+        window.copyRow = function () {
+            try {
+                const row = JSON.parse(document.getElementById('res').dataset.row || '{}');
+                const stockRaw = row[COL.stock];
+                const stockDisplay = (stockRaw === '' || stockRaw === null || stockRaw === undefined) ? 'Not Updated' : (Number(stockRaw) === 0 ? 'Out of Stock (0)' : stockRaw);
+                const txt = [
+                    `Unique Key: ${row[COL.key]}`, `Style No.: ${row[COL.styleNo]}`,
+                    `Size: ${row[COL.size]}`, `Rate: ₹${row[COL.rate]}`,
+                    `Stock: ${stockDisplay}`, `Timestamp: ${row[COL.timestamp]}`,
+                    `Image Link: ${row[COL.image]}`,
+                    ...(row[COL.generated] ? [`Generated Image: ${row[COL.generated]}`] : [])
+                ].join('\n');
+                navigator.clipboard.writeText(txt).then(() => {
+                    setSts('✓ Copied to clipboard', 'ok');
+                    setTimeout(() => setSts('', ''), 2500);
+                });
+            } catch (e) { }
+        };
+
+        /* ═════════ HOME search input ═════════ */
+        const inp = document.getElementById('sinp');
+        const clr = document.getElementById('sclr');
+        let dtmr;
+        inp.addEventListener('input', () => {
+            clearTimeout(dtmr);
+            const q = inp.value.trim(); lastQ = q;
+            clr.style.display = q ? 'flex' : 'none';
+            if (!q) {
+                document.getElementById('dd').style.display = 'none';
+                ['res', 'nores'].forEach(id => document.getElementById(id).style.display = 'none');
+                document.getElementById('heroSec').style.display = 'block';
+                document.getElementById('empt').style.display = 'block';
+                setSts('', ''); hits = []; return;
+            }
+            if (!products.length) { setSts('Still loading, please wait…', 'load'); return; }
+            dtmr = setTimeout(() => {
+                hits = search(q); activeIdx = -1;
+                renderDD(hits, q);
+                if (!hits.length) {
+                    setSts('No match found — try a different keyword', 'err');
+                    document.getElementById('nores').style.display = 'block';
+                    document.getElementById('empt').style.display = 'none';
+                    document.getElementById('res').style.display = 'none';
+                    document.getElementById('norsmsg').textContent = `No results for "${q}"`;
+                } else {
+                    document.getElementById('nores').style.display = 'none';
+                    setSts(`${hits.length} suggestion${hits.length > 1 ? 's' : ''} found`, '');
+                }
+            }, 140);
+        });
+        inp.addEventListener('keydown', e => {
+            if (!hits.length) return;
+            if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, hits.length - 1); renderDD(hits, lastQ); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, -1); renderDD(hits, lastQ); }
+            else if (e.key === 'Enter' && activeIdx >= 0 && hits[activeIdx]) { pick(hits[activeIdx].row); }
+            else if (e.key === 'Escape') { document.getElementById('dd').style.display = 'none'; inp.blur(); }
+        });
+        clr.addEventListener('click', () => {
+            inp.value = ''; clr.style.display = 'none';
+            document.getElementById('dd').style.display = 'none';
+            ['res', 'nores'].forEach(id => document.getElementById(id).style.display = 'none');
+            document.getElementById('heroSec').style.display = 'block';
+            document.getElementById('empt').style.display = 'block';
+            setSts('', ''); hits = []; lastQ = ''; inp.focus();
+        });
+        document.addEventListener('click', e => {
+            if (!e.target.closest('#sCard')) document.getElementById('dd').style.display = 'none';
+        });
+
+        /* ═════════ TABS ═════════ */
+        document.querySelectorAll('.tab').forEach(t => {
+            t.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+                t.classList.add('on');
+                currentTab = t.dataset.tab;
+                const homeVis = currentTab === 'home';
+                document.getElementById('homeView').style.display = homeVis ? 'block' : 'none';
+                document.getElementById('stockView').style.display = homeVis ? 'none' : 'block';
+                document.getElementById('catHeaderTools').style.display = homeVis ? 'none' : 'flex';
+                if (!homeVis) renderCatalog();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        });
+
+        /* ═════════ HEADER TOGGLES ═════════ */
+        document.getElementById('hideStockBtn').addEventListener('click', () => {
+            hideStock = !hideStock;
+            document.getElementById('hideStockBtn').classList.toggle('off', hideStock);
+            document.getElementById('hideStockTxt').textContent = hideStock ? 'Show Stock' : 'Hide Stock';
+            renderCatalog();
+        });
+        document.getElementById('hideGenderBtn').addEventListener('click', () => {
+            hideGender = !hideGender;
+            document.getElementById('hideGenderBtn').classList.toggle('off', hideGender);
+            document.getElementById('hideGenderTxt').textContent = hideGender ? 'Show Gender' : 'Hide Gender';
+            renderCatalog();
+        });
+
+        /* ═════════ CATALOG: filter, sort, render ═════════ */
+        function stockState(stk) {
+            if (stk === '' || stk === null || stk === undefined) return 'na';
+            if (Number(stk) === 0) return 'out';
+            return 'in';
+        }
+        function stockNum(stk) {
+            if (stk === '' || stk === null || stk === undefined) return -1;
+            return Number(stk);
+        }
+        function hasText(v) {
+            return v !== null && v !== undefined && String(v).trim() !== '';
+        }
+        // Blank cells bucket under 'N/A' so they stay selectable in the dropdowns.
+        function cellVal(v) {
+            return hasText(v) ? String(v).trim().toUpperCase() : 'N/A';
+        }
+
+        /* Which image a catalog card / PDF slot should show, following the Image
+           filter. Each mode already filters out rows lacking that image, so the
+           picked URL is present — no "No image" placeholders from a mode switch.
+           'all' prefers the uploaded photo and only falls back to the AI one. */
+        function rowImgUrl(r) {
+            if (catFilters.img === 'generated') return r[COL.generated];
+            if (catFilters.img === 'normal') return r[COL.image];
+            return hasText(r[COL.image]) ? r[COL.image] : r[COL.generated];
+        }
+        function isGeneratedShown(r) {
+            const u = rowImgUrl(r);
+            return hasText(u) && u === r[COL.generated];
+        }
+        function genderKind(grp) {
+            const g = String(grp || '').trim().toUpperCase();
+            if (g === 'MALE') return 'Male';
+            if (g === 'A' || g === 'B') return 'Ladies';
+            return '';
+        }
+
+        function applyFilters(rows) {
+            return rows.filter(r => {
+                // Gender
+                const gKind = genderKind(r[COL.group]);
+                if (catFilters.gender === 'Male' && gKind !== 'Male') return false;
+                if (catFilters.gender === 'Ladies') {
+                    if (gKind !== 'Ladies') return false;
+                    if (catFilters.sub !== 'all') {
+                        const g = String(r[COL.group] || '').trim().toUpperCase();
+                        if (g !== catFilters.sub.toUpperCase()) return false;
+                    }
+                }
+                // Size filter
+                if (catFilters.size !== 'all') {
+                    const rSize = (r[COL.size] !== null && r[COL.size] !== undefined && String(r[COL.size]).trim() !== '') 
+                        ? String(r[COL.size]).trim().toUpperCase() 
+                        : 'N/A';
+                    if (rSize !== catFilters.size.toUpperCase()) return false;
+                }
+                // Stock Type (fit) filter
+                if (catFilters.type !== 'all' && cellVal(r[COL.stockType]) !== catFilters.type) return false;
+                // Which image the row has
+                if (catFilters.img === 'normal' && !hasText(r[COL.image])) return false;
+                if (catFilters.img === 'generated' && !hasText(r[COL.generated])) return false;
+                // Stock chip filter
+                const sNum = stockNum(r[COL.stock]);
+                const sState = stockState(r[COL.stock]);
+                if (catFilters.stock === 'ge10' && !(sNum >= 10)) return false;
+                if (catFilters.stock === 'ge30' && !(sNum >= 30)) return false;
+                if (catFilters.stock === 'ge50' && !(sNum >= 50)) return false;
+                if (catFilters.stock === 'out' && sState !== 'out') return false;
+                if (catFilters.stock === 'na' && sState !== 'na') return false;
+                // Status select
+                if (catFilters.status !== 'all' && sState !== catFilters.status) return false;
+                // Search
+                if (catFilters.search) {
+                    const q = catFilters.search.toLowerCase();
+                    const hay = `${r[COL.key]} ${r[COL.styleNo]} ${r[COL.size]}`.toLowerCase();
+                    if (!hay.includes(q)) return false;
+                }
+                return true;
+            });
+        }
+
+        function applySort(rows) {
+            const arr = rows.slice();
+            switch (catFilters.sort) {
+                case 'rate-asc': arr.sort((a, b) => (Number(a[COL.rate]) || 0) - (Number(b[COL.rate]) || 0)); break;
+                case 'rate-desc': arr.sort((a, b) => (Number(b[COL.rate]) || 0) - (Number(a[COL.rate]) || 0)); break;
+                case 'stock-desc': arr.sort((a, b) => stockNum(b[COL.stock]) - stockNum(a[COL.stock])); break;
+                case 'stock-asc': arr.sort((a, b) => stockNum(a[COL.stock]) - stockNum(b[COL.stock])); break;
+                case 'key-asc': arr.sort((a, b) => String(a[COL.key]).localeCompare(String(b[COL.key]))); break;
+                case 'key-desc': arr.sort((a, b) => String(b[COL.key]).localeCompare(String(a[COL.key]))); break;
+                case 'recent': arr.sort((a, b) => new Date(b[COL.timestamp] || 0) - new Date(a[COL.timestamp] || 0)); break;
+            }
+            return arr;
+        }
+
+        function updateCatFilterCounts() {
+            const total = products.length;
+            const stkNums = products.map(r => stockNum(r[COL.stock]));
+            const stateCounts = products.reduce((acc, r) => { acc[stockState(r[COL.stock])]++; return acc; }, { in: 0, out: 0, na: 0 });
+            document.getElementById('cf-stk-all').textContent = `(${total})`;
+            document.getElementById('cf-stk-10').textContent = `(${stkNums.filter(n => n >= 10).length})`;
+            document.getElementById('cf-stk-30').textContent = `(${stkNums.filter(n => n >= 30).length})`;
+            document.getElementById('cf-stk-50').textContent = `(${stkNums.filter(n => n >= 50).length})`;
+            document.getElementById('cf-stk-out').textContent = `(${stateCounts.out})`;
+            document.getElementById('cf-stk-na').textContent = `(${stateCounts.na})`;
+
+            const cMale = products.filter(r => genderKind(r[COL.group]) === 'Male').length;
+            const cA = products.filter(r => String(r[COL.group] || '').trim().toUpperCase() === 'A').length;
+            const cB = products.filter(r => String(r[COL.group] || '').trim().toUpperCase() === 'B').length;
+            document.getElementById('cf-gen-all').textContent = `(${total})`;
+            document.getElementById('cf-gen-male').textContent = `(${cMale})`;
+            document.getElementById('cf-gen-ladies').textContent = `(${cA + cB})`;
+            document.getElementById('cf-sub-a').textContent = `(${cA})`;
+            document.getElementById('cf-sub-b').textContent = `(${cB})`;
+
+            populateSizeFilters();
+            populateTypeFilters();
+            populateImgFilter();
+        }
+
+        function renderCatalog() {
+            const filtered = applySort(applyFilters(products));
+            document.getElementById('catShowingTxt').textContent = filtered.length;
+            document.getElementById('catTotalTxt').textContent = products.length;
+
+            const grid = document.getElementById('catGrid');
+            if (!filtered.length) {
+                grid.innerHTML = `<div class="cat-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          <div>No items match the current filters.</div>
+        </div>`;
+                updateSelBar();
+                return;
+            }
+
+            grid.innerHTML = filtered.map(r => {
+                const k = r[COL.key];
+                const uid = r.__uid;
+                const isSel = selected.has(uid);
+                const imgSrc = driveImg(rowImgUrl(r));
+                const showingGen = isGeneratedShown(r);
+                const stk = r[COL.stock];
+                const sSt = stockState(stk);
+                let stkTxt;
+                if (sSt === 'na') stkTxt = 'N/A';
+                else if (sSt === 'out') stkTxt = 'Out';
+                else stkTxt = Number(stk).toLocaleString();
+
+                const sType = cellVal(r[COL.stockType]);
+                const grp = String(r[COL.group] || '').trim().toUpperCase();
+                let gBadgeCls = '', gBadgeTxt = '';
+                if (grp === 'MALE') { gBadgeCls = 'male'; gBadgeTxt = 'MEN'; }
+                else if (grp === 'A') { gBadgeCls = 'a'; gBadgeTxt = 'CAT A'; }
+                else if (grp === 'B') { gBadgeCls = 'b'; gBadgeTxt = 'CAT B'; }
+
+                return `<div class="cat-card${isSel ? ' selected' : ''}" data-uid="${uid}">
+          <div class="cat-img">
+            ${(!hideGender && gBadgeTxt) ? `<span class="cat-gen-badge ${gBadgeCls}">${gBadgeTxt}</span>` : ''}
+            ${showingGen ? `<span class="cat-ai-badge">AI</span>` : ''}
+            ${imgSrc ? `<img src="${imgSrc}" loading="lazy" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=cat-img-ph>No image</div>')">` : `<div class="cat-img-ph">No image</div>`}
+          </div>
+          <div class="cat-body">
+            <div class="cat-key">${k}</div>
+            <div class="cat-line">
+              <span class="cat-style">Style ${r[COL.styleNo] || '—'}</span>
+              ${sType !== 'N/A' ? `<span class="cat-type">${sType}</span>` : ''}
+            </div>
+            <div class="cat-meta">
+              <span class="cat-rate">₹${r[COL.rate] || '—'}</span>
+              ${!hideStock ? `<span class="cat-stock-tag ${sSt}">${stkTxt}</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+            }).join('');
+
+            grid.querySelectorAll('.cat-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const uid = Number(card.dataset.uid);
+                    if (selected.has(uid)) selected.delete(uid);
+                    else selected.add(uid);
+                    card.classList.toggle('selected');
+                    updateSelBar();
+                });
+            });
+            updateSelBar();
+        }
+
+        function updateSelBar() {
+            const bar = document.getElementById('selBar');
+            document.getElementById('selCount').textContent = `${selected.size} selected`;
+            bar.classList.toggle('show', selected.size > 0);
+        }
+
+        /* ═════════ Catalog filter wiring ═════════ */
+        document.querySelectorAll('.fpill[data-stk]').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('.fpill[data-stk]').forEach(x => x.classList.remove('on'));
+                el.classList.add('on');
+                catFilters.stock = el.dataset.stk;
+                renderCatalog();
+            });
+        });
+        document.querySelectorAll('.fpill[data-gen]').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('.fpill[data-gen]').forEach(x => x.classList.remove('on'));
+                el.classList.add('on');
+                catFilters.gender = el.dataset.gen;
+                document.getElementById('ladiesSubFilt').style.display = (catFilters.gender === 'Ladies') ? 'inline-flex' : 'none';
+                if (catFilters.gender !== 'Ladies') {
+                    catFilters.sub = 'all';
+                    document.querySelectorAll('.fpill[data-sub]').forEach(x => x.classList.toggle('on', x.dataset.sub === 'all'));
+                }
+                renderCatalog();
+            });
+        });
+        document.querySelectorAll('.fpill[data-sub]').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('.fpill[data-sub]').forEach(x => x.classList.remove('on'));
+                el.classList.add('on');
+                catFilters.sub = el.dataset.sub;
+                renderCatalog();
+            });
+        });
+
+        function populateSizeFilters() {
+            const sel = document.getElementById('catSizeSel');
+            if (!sel) return;
+
+            const counts = {};
+            products.forEach(r => {
+                const raw = r[COL.size];
+                const sz = (raw !== null && raw !== undefined && String(raw).trim() !== '') 
+                    ? String(raw).trim().toUpperCase() 
+                    : 'N/A';
+                counts[sz] = (counts[sz] || 0) + 1;
+            });
+
+            const uniqueSizes = Object.keys(counts).sort((a, b) => {
+                if (a === 'N/A') return 1;
+                if (b === 'N/A') return -1;
+                return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+            });
+
+            let selHtml = `<option value="all"${catFilters.size === 'all' ? ' selected' : ''}>All Sizes (${products.length})</option>`;
+            uniqueSizes.forEach(sz => {
+                const isSelected = catFilters.size === sz;
+                selHtml += `<option value="${sz}"${isSelected ? ' selected' : ''}>${sz} (${counts[sz]})</option>`;
+            });
+            sel.innerHTML = selHtml;
+        }
+
+        function setSizeFilter(sizeVal) {
+            catFilters.size = sizeVal;
+            const sel = document.getElementById('catSizeSel');
+            if (sel && sel.value !== sizeVal) sel.value = sizeVal;
+            renderCatalog();
+        }
+
+        function populateTypeFilters() {
+            const sel = document.getElementById('catTypeSel');
+            if (!sel) return;
+
+            const counts = {};
+            products.forEach(r => {
+                const t = cellVal(r[COL.stockType]);
+                counts[t] = (counts[t] || 0) + 1;
+            });
+
+            const types = Object.keys(counts).sort((a, b) => {
+                if (a === 'N/A') return 1;
+                if (b === 'N/A') return -1;
+                return a.localeCompare(b);
+            });
+
+            sel.innerHTML = `<option value="all"${catFilters.type === 'all' ? ' selected' : ''}>All Types (${products.length})</option>` +
+                types.map(t => `<option value="${t}"${catFilters.type === t ? ' selected' : ''}>${t} (${counts[t]})</option>`).join('');
+        }
+
+        document.getElementById('catSizeSel').addEventListener('change', e => {
+            setSizeFilter(e.target.value);
+        });
+
+        document.getElementById('catTypeSel').addEventListener('change', e => {
+            catFilters.type = e.target.value; renderCatalog();
+        });
+
+        function populateImgFilter() {
+            const sel = document.getElementById('catImgSel');
+            if (!sel) return;
+            const nNormal = products.filter(r => hasText(r[COL.image])).length;
+            const nGen = products.filter(r => hasText(r[COL.generated])).length;
+            const opts = [
+                ['normal', `Normal (${nNormal})`],
+                ['generated', `Generated (${nGen})`],
+                ['all', `All (${products.length})`]
+            ];
+            sel.innerHTML = opts.map(([v, t]) =>
+                `<option value="${v}"${catFilters.img === v ? ' selected' : ''}>${t}</option>`).join('');
+        }
+
+        document.getElementById('catImgSel').addEventListener('change', e => {
+            catFilters.img = e.target.value; renderCatalog();
+        });
+
+        document.getElementById('catStatusSel').addEventListener('change', e => {
+            catFilters.status = e.target.value; renderCatalog();
+        });
+        document.getElementById('catSortSel').addEventListener('change', e => {
+            catFilters.sort = e.target.value; renderCatalog();
+        });
+        let csTmr;
+        document.getElementById('catSearch').addEventListener('input', e => {
+            clearTimeout(csTmr);
+            csTmr = setTimeout(() => {
+                catFilters.search = e.target.value.trim();
+                renderCatalog();
+            }, 180);
+        });
+        document.getElementById('clearSelBtn').addEventListener('click', () => {
+            selected.clear(); renderCatalog();
+        });
+
+        /* ═════════ PDF Modal & Export ═════════ */
+        document.getElementById('exportPdfBtn').addEventListener('click', () => openPdfModal('filtered'));
+        document.getElementById('genPdfFromSelBtn').addEventListener('click', () => openPdfModal('selected'));
+        let pdfSourceMode = 'filtered'; // 'filtered' or 'selected'
+
+        function openPdfModal(mode) {
+            pdfSourceMode = mode;
+            const items = getPdfItems();
+            if (!items.length) {
+                alert('No items to export. Adjust filters or select some items first.');
+                return;
+            }
+            document.getElementById('pdfHdTitle').textContent = mode === 'selected' ? 'Export Selected Items' : 'Export PDF Report';
+            document.getElementById('pdfHdSub').textContent = `${items.length} item${items.length !== 1 ? 's' : ''} · Choose layout & fields`;
+            document.getElementById('pdfConfig').classList.remove('hide');
+            document.getElementById('pdfProgress').classList.remove('show');
+            // Sync PDF field checkboxes with hide toggles
+            document.getElementById('fld-stock').checked = !hideStock;
+            document.getElementById('fld-gender').checked = !hideGender;
+            document.getElementById('pdfDoneActions').style.display = 'none';
+            document.getElementById('pdfBar').style.width = '0%';
+            document.getElementById('pdfModal').classList.add('show');
+        }
+        function closePdfModal() { document.getElementById('pdfModal').classList.remove('show'); }
+        window.closePdfModal = closePdfModal;
+
+        function getPdfItems() {
+            if (pdfSourceMode === 'selected') {
+                return products.filter(r => selected.has(r.__uid));
+            }
+            return applySort(applyFilters(products));
+        }
+
+        document.querySelectorAll('.pdf-layout-opt').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('.pdf-layout-opt').forEach(x => x.classList.remove('on'));
+                el.classList.add('on');
+                pdfPerPage = Number(el.dataset.perpage);
+            });
+        });
+
+        document.getElementById('pdfStartBtn').addEventListener('click', () => generatePDF());
+
+        function loadImageAsDataURL(url) {
+            return new Promise((resolve) => {
+                if (!url) return resolve(null);
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                const timer = setTimeout(() => resolve(null), 15000);
+                img.onload = () => {
+                    clearTimeout(timer);
+                    try {
+                        const canvas = document.createElement('canvas');
+                        const maxW = pdfPerPage === 1 ? 1400 : (pdfPerPage === 2 ? 1100 : 800);
+                        const ratio = img.width > maxW ? maxW / img.width : 1;
+                        canvas.width = Math.round(img.width * ratio);
+                        canvas.height = Math.round(img.height * ratio);
+                        const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = '#fff';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.88), w: canvas.width, h: canvas.height });
+                    } catch (e) { resolve(null); }
+                };
+                img.onerror = () => { clearTimeout(timer); resolve(null); };
+                img.src = url;
+            });
+        }
+
+        function setPdfProgress(done, total, lbl) {
+            const pct = total ? Math.round((done / total) * 100) : 0;
+            document.getElementById('pdfBar').style.width = pct + '%';
+            document.getElementById('pdfProgTxt').textContent = `${done} / ${total}`;
+            if (lbl) document.getElementById('pdfProgLbl').textContent = lbl;
+        }
+
+        async function generatePDF() {
+            const items = getPdfItems();
+            if (!items.length) return;
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                alert('PDF library not loaded. Please check internet & refresh.');
+                return;
+            }
+
+            // collect field choices
+            const show = {
+                key: document.getElementById('fld-key').checked,
+                style: document.getElementById('fld-style').checked,
+                size: document.getElementById('fld-size').checked,
+                rate: document.getElementById('fld-rate').checked,
+                stock: document.getElementById('fld-stock').checked,
+                gender: document.getElementById('fld-gender').checked,
+                type: document.getElementById('fld-type').checked,
+            };
+
+            // switch to progress UI
+            document.getElementById('pdfConfig').classList.add('hide');
+            document.getElementById('pdfProgress').classList.add('show');
+            setPdfProgress(0, items.length, 'Downloading product images…');
+
+            // 1) Preload all images
+            const imageData = [];
+            for (let i = 0; i < items.length; i++) {
+                const url = driveImg(rowImgUrl(items[i]));
+                const data = await loadImageAsDataURL(url);
+                imageData.push(data);
+                setPdfProgress(i + 1, items.length, 'Downloading product images…');
+            }
+
+            setPdfProgress(items.length, items.length, 'Building PDF document…');
+            await new Promise(r => setTimeout(r, 50));
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+            const pageW = doc.internal.pageSize.getWidth();   // 210
+            const pageH = doc.internal.pageSize.getHeight();  // 297
+            const margin = 8;
+            const headerH = 10;
+            const footerH = 5;
+
+            // Build header label
+            const catLabel = (() => {
+                const parts = [];
+                if (catFilters.gender !== 'all') {
+                    if (catFilters.gender === 'Male') parts.push('Men');
+                    else parts.push(catFilters.sub === 'all' ? 'Ladies' : `Ladies · Cat ${catFilters.sub}`);
+                }
+                if (catFilters.size !== 'all') {
+                    parts.push(`Size ${catFilters.size}`);
+                }
+                if (catFilters.type !== 'all') {
+                    parts.push(catFilters.type);
+                }
+                if (catFilters.img === 'generated') {
+                    parts.push('Generated Image');
+                }
+                if (catFilters.stock !== 'all') {
+                    const m = { ge10: 'Stock ≥ 10', ge30: 'Stock ≥ 30', ge50: 'Stock ≥ 50', out: 'Out of Stock', na: 'Not Updated' };
+                    parts.push(m[catFilters.stock] || '');
+                }
+                if (pdfSourceMode === 'selected') parts.unshift('Selected Items');
+                return parts.length ? parts.join(' · ') : 'All Items';
+            })();
+
+            const perPage = pdfPerPage;
+            const totalPages = Math.ceil(items.length / perPage);
+
+            // Compute slot layout for current perPage
+            const usableY = margin + headerH;
+            const usableH = pageH - usableY - margin - footerH;
+            const usableW = pageW - margin * 2;
+            let slots = [];
+            if (perPage === 1) {
+                slots = [{ x: margin, y: usableY, w: usableW, h: usableH }];
+            } else if (perPage === 2) {
+                const slotH = (usableH - 4) / 2;
+                slots = [
+                    { x: margin, y: usableY, w: usableW, h: slotH },
+                    { x: margin, y: usableY + slotH + 4, w: usableW, h: slotH }
+                ];
+            } else { // 4
+                const slotW = (usableW - 4) / 2;
+                const slotH = (usableH - 4) / 2;
+                slots = [
+                    { x: margin, y: usableY, w: slotW, h: slotH },
+                    { x: margin + slotW + 4, y: usableY, w: slotW, h: slotH },
+                    { x: margin, y: usableY + slotH + 4, w: slotW, h: slotH },
+                    { x: margin + slotW + 4, y: usableY + slotH + 4, w: slotW, h: slotH }
+                ];
+            }
+
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                const slotIdx = i % perPage;
+                const pageNum = Math.floor(i / perPage) + 1;
+
+                if (slotIdx === 0) {
+                    if (i > 0) doc.addPage();
+                    // Header bar (slim)
+                    doc.setFillColor(59, 91, 219);
+                    doc.rect(0, 0, pageW, margin + headerH - 2, 'F');
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(11);
+                    doc.text('Product Catalog', margin, margin + 2.5);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(7.5);
+                    doc.text(catLabel, margin, margin + 6.5);
+                    const dateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                    doc.text(`${dateStr}  ·  Page ${pageNum} of ${totalPages}`, pageW - margin, margin + 6.5, { align: 'right' });
+                    // Footer
+                    doc.setFontSize(6.5);
+                    doc.setTextColor(138, 147, 192);
+                    doc.text(`${items.length} items · Item Image Lookup`, pageW / 2, pageH - 2.5, { align: 'center' });
+                }
+
+                drawItemSlot(doc, item, imageData[i], slots[slotIdx], show, perPage);
+                setPdfProgress(i + 1, items.length, 'Building PDF document…');
+            }
+
+            const safeCat = catLabel.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+            const stamp = new Date().toISOString().slice(0, 10);
+            const fname = `Catalog_${safeCat}_${items.length}items_${stamp}.pdf`;
+            doc.save(fname);
+
+            document.getElementById('pdfProgLbl').textContent = '✓ PDF Generated';
+            document.getElementById('pdfProgTxt').textContent = `${items.length} items · check your downloads`;
+            document.getElementById('pdfDoneActions').style.display = 'flex';
+        }
+
+        function drawItemSlot(doc, item, imgD, slot, show, perPage) {
+            const { x, y, w, h } = slot;
+
+            // ── Card outline ──
+            doc.setFillColor(255, 255, 255);
+            doc.setDrawColor(221, 227, 245);
+            doc.setLineWidth(0.4);
+            doc.roundedRect(x, y, w, h, 3, 3, 'FD');
+
+            // ── IMAGE-FIRST LAYOUT ──
+            // Image fills ~85-88% of the slot. Details are a compact strip at the bottom.
+            // No inner padding around the image so it can breathe edge-to-edge.
+
+            // Compute compact details strip height based on what's shown
+            const hasTopRow = show.key || show.rate;
+            const typeTxt = show.type && item[COL.stockType] != null && String(item[COL.stockType]).trim() !== ''
+                ? String(item[COL.stockType]).trim() : '';
+            const hasMidRow = show.style || show.size || !!typeTxt;
+            const hasStock = show.stock;
+
+            // Base strip = single line if only one row, two lines if multiple
+            let stripLines = 0;
+            if (hasTopRow) stripLines++;
+            if (hasMidRow || hasStock) stripLines++;
+            // If both midrow and stock, they go on the same line (style left, stock right)
+
+            let stripH;
+            if (perPage === 1) {
+                stripH = stripLines === 0 ? 0 : (stripLines === 1 ? 14 : 22);
+            } else if (perPage === 2) {
+                stripH = stripLines === 0 ? 0 : (stripLines === 1 ? 11 : 17);
+            } else { // 4 per page
+                stripH = stripLines === 0 ? 0 : (stripLines === 1 ? 8 : 12);
+            }
+
+            // If nothing to show, strip is gone entirely
+            if (!hasTopRow && !hasMidRow && !hasStock) stripH = 0;
+
+            // Image gets EVERYTHING except the strip
+            const imgX = x;
+            const imgY = y;
+            const imgW = w;
+            const imgH = h - stripH;
+
+            // Image background (very subtle, only visible if image doesn't fill perfectly)
+            doc.setFillColor(245, 247, 255);
+            // Clip with rounded top corners only
+            doc.roundedRect(imgX, imgY, imgW, imgH, 3, 3, 'F');
+
+            // Draw image — fill as much as possible while preserving aspect ratio
+            if (imgD) {
+                const aspect = imgD.w / imgD.h;
+                const slotAspect = imgW / imgH;
+                let dW, dH;
+                if (aspect > slotAspect) {
+                    // Image is wider than slot — fit width, leave top/bottom space
+                    dW = imgW - 2;
+                    dH = dW / aspect;
+                } else {
+                    // Image is taller than slot — fit height, leave side space
+                    dH = imgH - 2;
+                    dW = dH * aspect;
+                }
+                const dx = imgX + (imgW - dW) / 2;
+                const dy = imgY + (imgH - dH) / 2;
+                try {
+                    doc.addImage(imgD.dataUrl, 'JPEG', dx, dy, dW, dH);
+                } catch (e) {
+                    doc.setTextColor(138, 147, 192);
+                    doc.setFontSize(11);
+                    doc.text('Image error', imgX + imgW / 2, imgY + imgH / 2, { align: 'center' });
+                }
+            } else {
+                // Placeholder when no image
+                doc.setFillColor(238, 242, 255);
+                doc.rect(imgX + 2, imgY + 2, imgW - 4, imgH - 4, 'F');
+                doc.setTextColor(138, 147, 192);
+                doc.setFontSize(perPage === 4 ? 9 : (perPage === 2 ? 12 : 14));
+                doc.setFont('helvetica', 'normal');
+                doc.text('No image available', imgX + imgW / 2, imgY + imgH / 2, { align: 'center' });
+            }
+
+            // ── Gender badge (floating on top-left of image) ──
+            if (show.gender) {
+                const grp = String(item[COL.group] || '').trim().toUpperCase();
+                let gTxt = '', gColor = [59, 91, 219], gBg = [255, 255, 255];
+                if (grp === 'MALE') { gTxt = 'MEN'; gColor = [59, 91, 219]; }
+                else if (grp === 'A') { gTxt = 'LADIES A'; gColor = [194, 37, 92]; }
+                else if (grp === 'B') { gTxt = 'LADIES B'; gColor = [230, 119, 0]; }
+                if (gTxt) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(perPage === 4 ? 6.5 : (perPage === 2 ? 8 : 9));
+                    const padX = perPage === 4 ? 2 : 3;
+                    const tagW = doc.getTextWidth(gTxt) + padX * 2;
+                    const tagH = perPage === 4 ? 4 : (perPage === 2 ? 5 : 6);
+                    const tx = imgX + 3;
+                    const ty = imgY + 3;
+                    // White card with colored border for readability over any image
+                    doc.setFillColor(255, 255, 255);
+                    doc.setDrawColor(gColor[0], gColor[1], gColor[2]);
+                    doc.setLineWidth(0.4);
+                    doc.roundedRect(tx, ty, tagW, tagH, 1, 1, 'FD');
+                    doc.setTextColor(gColor[0], gColor[1], gColor[2]);
+                    doc.text(gTxt, tx + padX, ty + tagH - (perPage === 4 ? 1.3 : 1.7));
+                }
+            }
+
+            // ── Compact details strip at bottom ──
+            if (stripH === 0) return;
+
+            const stripY = y + h - stripH;
+            const stripPadX = perPage === 4 ? 3 : 5;
+            const stripPadY = perPage === 4 ? 2 : 3;
+
+            // Divider line above strip
+            doc.setDrawColor(221, 227, 245);
+            doc.setLineWidth(0.3);
+            doc.line(x + 2, stripY, x + w - 2, stripY);
+
+            // White background for strip
+            doc.setFillColor(255, 255, 255);
+            doc.rect(x + 0.5, stripY + 0.3, w - 1, stripH - 0.6, 'F');
+
+            // ─ Top row: Key (left) + Rate (right) ─
+            if (hasTopRow) {
+                const topY = stripY + stripPadY + (perPage === 4 ? 3 : (perPage === 2 ? 4 : 6));
+
+                // Key text
+                if (show.key) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(perPage === 4 ? 8 : (perPage === 2 ? 11 : 14));
+                    doc.setTextColor(26, 31, 61);
+                    const keyTxt = String(item[COL.key] || '—');
+                    const rateReserve = show.rate ? (perPage === 4 ? 16 : (perPage === 2 ? 26 : 36)) : 0;
+                    const maxKeyW = w - stripPadX * 2 - rateReserve - 2;
+                    let displayKey = keyTxt;
+                    while (doc.getTextWidth(displayKey) > maxKeyW && displayKey.length > 4) {
+                        displayKey = displayKey.slice(0, -2) + '…';
+                    }
+                    doc.text(displayKey, x + stripPadX, topY);
+                }
+
+                // Rate (right-aligned, big & bold)
+                if (show.rate) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(perPage === 4 ? 9 : (perPage === 2 ? 13 : 17));
+                    doc.setTextColor(59, 91, 219);
+                    const rTxt = `Rs. ${item[COL.rate] || '—'}`;
+                    doc.text(rTxt, x + w - stripPadX, topY + (perPage === 4 ? 0.3 : 0.5), { align: 'right' });
+                }
+            }
+
+            // ─ Bottom row: Style/Size (left) + Stock pill (right) ─
+            if (hasMidRow || hasStock) {
+                const botY = stripY + stripH - stripPadY - (perPage === 4 ? 0.8 : 1.5);
+
+                // Stock pill is measured first so the meta text can reserve room for it
+                // and truncate instead of running underneath.
+                let pill = null;
+                if (hasStock) {
+                    const stk = item[COL.stock];
+                    let stkTxt, stkColor, stkBg;
+                    if (stk === '' || stk === null || stk === undefined) {
+                        stkTxt = 'N/A'; stkColor = [230, 119, 0]; stkBg = [255, 248, 235];
+                    } else if (Number(stk) === 0) {
+                        stkTxt = 'OUT'; stkColor = [201, 42, 42]; stkBg = [255, 240, 240];
+                    } else {
+                        stkTxt = `${Number(stk).toLocaleString()} pcs`; stkColor = [12, 166, 120]; stkBg = [232, 250, 245];
+                    }
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(perPage === 4 ? 6 : (perPage === 2 ? 7.5 : 9));
+                    const padX = perPage === 4 ? 1.5 : 2.2;
+                    pill = { stkTxt, stkColor, stkBg, padX, tagW: doc.getTextWidth(stkTxt) + padX * 2 };
+                }
+
+                // Style / Size / Type text (left)
+                if (hasMidRow) {
+                    const metaParts = [];
+                    if (show.style) metaParts.push(`Style ${item[COL.styleNo] || '—'}`);
+                    if (show.size) metaParts.push(`Size ${item[COL.size] || '—'}`);
+                    if (typeTxt) metaParts.push(typeTxt);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(perPage === 4 ? 6.5 : (perPage === 2 ? 8.5 : 10));
+                    doc.setTextColor(74, 82, 130);
+                    let metaTxt = metaParts.join('  ·  ');
+                    const maxMetaW = w - stripPadX * 2 - (pill ? pill.tagW + 2 : 0);
+                    while (metaTxt.length > 4 && doc.getTextWidth(metaTxt) > maxMetaW) {
+                        metaTxt = metaTxt.slice(0, -2) + '…';
+                    }
+                    doc.text(metaTxt, x + stripPadX, botY);
+                }
+
+                // Stock pill (right)
+                if (pill) {
+                    const { stkTxt, stkColor, stkBg, padX, tagW } = pill;
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(perPage === 4 ? 6 : (perPage === 2 ? 7.5 : 9));
+                    const tagH = perPage === 4 ? 3.2 : (perPage === 2 ? 4 : 5);
+                    const tx = x + w - stripPadX - tagW;
+                    const ty = botY - tagH + (perPage === 4 ? 1 : 1.3);
+                    doc.setFillColor(stkBg[0], stkBg[1], stkBg[2]);
+                    doc.setDrawColor(stkColor[0], stkColor[1], stkColor[2]);
+                    doc.setLineWidth(0.2);
+                    doc.roundedRect(tx, ty, tagW, tagH, 0.8, 0.8, 'FD');
+                    doc.setTextColor(stkColor[0], stkColor[1], stkColor[2]);
+                    doc.text(stkTxt, tx + padX, ty + tagH - (perPage === 4 ? 1 : 1.3));
+                }
+            }
+        }
+
+        /* ═════════ Boot ═════════ */
+        document.getElementById('refreshBtn').addEventListener('click', () => refresh());
+        boot();
+    </script>
+</body>
+
+</html>
