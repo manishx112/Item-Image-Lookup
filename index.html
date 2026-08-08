@@ -2374,12 +2374,14 @@
                             <input type="checkbox" id="fld-rate" checked>
                             <span>Rate / Price</span>
                         </label>
+                        <!-- Off by default: these are internal (stock levels, Cat A/B tier)
+                             and the PDF is handed to customers. -->
                         <label class="pdf-field-row">
-                            <input type="checkbox" id="fld-stock" checked>
+                            <input type="checkbox" id="fld-stock">
                             <span>Stock Status</span>
                         </label>
                         <label class="pdf-field-row">
-                            <input type="checkbox" id="fld-gender" checked>
+                            <input type="checkbox" id="fld-gender">
                             <span>Gender Badge</span>
                         </label>
                         <label class="pdf-field-row">
@@ -3230,9 +3232,10 @@
             document.getElementById('pdfHdSub').textContent = `${items.length} item${items.length !== 1 ? 's' : ''} · Choose layout & fields`;
             document.getElementById('pdfConfig').classList.remove('hide');
             document.getElementById('pdfProgress').classList.remove('show');
-            // Sync PDF field checkboxes with hide toggles
-            document.getElementById('fld-stock').checked = !hideStock;
-            document.getElementById('fld-gender').checked = !hideGender;
+            // The Hide toggles can only force a field off, never back on — so the
+            // customer-safe default (stock & gender off) is not silently undone.
+            if (hideStock) document.getElementById('fld-stock').checked = false;
+            if (hideGender) document.getElementById('fld-gender').checked = false;
             document.getElementById('pdfDoneActions').style.display = 'none';
             document.getElementById('pdfBar').style.width = '0%';
             document.getElementById('pdfModal').classList.add('show');
@@ -3331,33 +3334,13 @@
             const pageW = doc.internal.pageSize.getWidth();   // 210
             const pageH = doc.internal.pageSize.getHeight();  // 297
             const margin = 8;
-            const headerH = 10;
-            const footerH = 5;
+            const headerH = 6;    // one header line now, so the bar can be shorter
+            const footerH = 0;    // footer text removed — reclaim the space for images
+            const barH = margin + headerH - 2;
 
-            // Build header label
-            const catLabel = (() => {
-                const parts = [];
-                if (catFilters.gender !== 'all') {
-                    if (catFilters.gender === 'Male') parts.push('Men');
-                    else parts.push(catFilters.sub === 'all' ? 'Ladies' : `Ladies · Cat ${catFilters.sub}`);
-                }
-                if (catFilters.size !== 'all') {
-                    parts.push(`Size ${catFilters.size}`);
-                }
-                if (catFilters.type !== 'all') {
-                    parts.push(catFilters.type);
-                }
-                if (catFilters.img === 'generated') {
-                    parts.push('Generated Image');
-                }
-                if (catFilters.stock !== 'all') {
-                    const m = { ge10: 'Stock ≥ 10', ge30: 'Stock ≥ 30', ge50: 'Stock ≥ 50', out: 'Out of Stock', na: 'Not Updated' };
-                    parts.push(m[catFilters.stock] || '');
-                }
-                if (pdfSourceMode === 'selected') parts.unshift('Selected Items');
-                return parts.length ? parts.join(' · ') : 'All Items';
-            })();
-
+            /* The PDF goes to customers, so it must not leak internal detail —
+               no category/Cat A-B, no fit type, no stock levels, no filter names.
+               Header carries the title, the date and the page number only. */
             const perPage = pdfPerPage;
             const totalPages = Math.ceil(items.length / perPage);
 
@@ -3394,29 +3377,25 @@
                     if (i > 0) doc.addPage();
                     // Header bar (slim)
                     doc.setFillColor(59, 91, 219);
-                    doc.rect(0, 0, pageW, margin + headerH - 2, 'F');
+                    doc.rect(0, 0, pageW, barH, 'F');
                     doc.setTextColor(255, 255, 255);
+                    const baseY = barH / 2 + 1.4;    // vertically centred in the bar
                     doc.setFont('helvetica', 'bold');
                     doc.setFontSize(11);
-                    doc.text('Product Catalog', margin, margin + 2.5);
+                    doc.text('Product Catalog', margin, baseY);
                     doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(7.5);
-                    doc.text(catLabel, margin, margin + 6.5);
+                    doc.setFontSize(8);
                     const dateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-                    doc.text(`${dateStr}  ·  Page ${pageNum} of ${totalPages}`, pageW - margin, margin + 6.5, { align: 'right' });
-                    // Footer
-                    doc.setFontSize(6.5);
-                    doc.setTextColor(138, 147, 192);
-                    doc.text(`${items.length} items · Item Image Lookup`, pageW / 2, pageH - 2.5, { align: 'center' });
+                    doc.text(`${dateStr}  ·  Page ${pageNum} of ${totalPages}`, pageW - margin, baseY, { align: 'right' });
                 }
 
                 drawItemSlot(doc, item, imageData[i], slots[slotIdx], show, perPage);
                 setPdfProgress(i + 1, items.length, 'Building PDF document…');
             }
 
-            const safeCat = catLabel.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+            // Filename is customer-visible too, so keep it neutral.
             const stamp = new Date().toISOString().slice(0, 10);
-            const fname = `Catalog_${safeCat}_${items.length}items_${stamp}.pdf`;
+            const fname = `Product_Catalog_${items.length}items_${stamp}.pdf`;
             doc.save(fname);
 
             document.getElementById('pdfProgLbl').textContent = '✓ PDF Generated';
