@@ -1805,6 +1805,44 @@
             border-color: #ffd28a
         }
 
+        /* Two suggestion rows can share a key, size and style and differ only by
+           rate tier — the tier badge is what tells them apart. */
+        .dcat {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 20px;
+            letter-spacing: .3px;
+            flex-shrink: 0;
+            border: 1px solid transparent;
+        }
+
+        .dcat.a {
+            background: #fff0f9;
+            color: #c2255c;
+            border-color: #f8b4d9
+        }
+
+        .dcat.b {
+            background: #fff8eb;
+            color: #e67700;
+            border-color: #ffd28a
+        }
+
+        .dcat.male {
+            background: #eef2ff;
+            color: #3b5bdb;
+            border-color: #bfcbff
+        }
+
+        .icval.pink {
+            color: #c2255c
+        }
+
+        .icval.amber {
+            color: #e67700
+        }
+
         .cat-body {
             padding: 9px 10px 11px;
             flex: 1;
@@ -2369,6 +2407,11 @@
             .cat-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 8px
+            }
+
+            /* "CAT A" → "A", so the badge doesn't crowd the suggestion row. */
+            .dcat-p {
+                display: none
             }
 
             /* 2-up cards are too narrow to sit the type beside the style —
@@ -3165,6 +3208,20 @@
         }
 
         /* ═════════ HOME view: dropdown & result ═════════ */
+        /* Ladies items sit in two rate tiers, so the same key + size + style shows
+           up twice at different rates. Label the tier so the pair reads as two
+           distinct items rather than a duplicate. Honours the Hide Gender toggle,
+           the same as the catalog cards. */
+        function catBadgeInfo(row) {
+            if (hideGender) return null;
+            const g = String(row[COL.group] || '').trim().toUpperCase();
+            // `pre` is dropped on narrow screens so the badge stays one letter wide.
+            if (g === 'A') return { cls: 'a', txt: 'CAT A', pre: 'CAT ', main: 'A' };
+            if (g === 'B') return { cls: 'b', txt: 'CAT B', pre: 'CAT ', main: 'B' };
+            if (g === 'MALE') return { cls: 'male', txt: 'MEN', pre: '', main: 'MEN' };
+            return null;
+        }
+
         function renderDD(res, q) {
             const dd = document.getElementById('dd');
             if (!res.length) { dd.style.display = 'none'; return; }
@@ -3180,9 +3237,11 @@
                     } else {
                         stockBadge = `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:var(--green-lt);color:var(--green);border:1px solid var(--green-md);flex-shrink:0">${Number(stockRaw)}</span>`;
                     }
+                    const cat = catBadgeInfo(r.row);
                     return `<div class="ddr${i === activeIdx ? ' on' : ''}" data-i="${i}">
             <span class="dsku">${hl(r.row[COL.key], q)}</span>
             <span class="dnm">${hl(r.row[COL.size], q)} · Style ${hl(String(r.row[COL.styleNo]), q)}</span>
+            ${cat ? `<span class="dcat ${cat.cls}">${cat.pre ? `<span class="dcat-p">${cat.pre}</span>` : ''}${cat.main}</span>` : ''}
             ${rate ? `<span class="drate">₹${rate}</span>` : ''}
             ${stockBadge}
           </div>`;
@@ -3248,9 +3307,13 @@
         <div class="shbot"><div class="shbadge">✓ Item Found</div><div class="shsku">${uniqueKey}</div></div>
       </div>`;
             html += `<div class="pcard"><div class="pav">${initials}</div><div><div class="pname">${uniqueKey}</div><div class="psub">Style No: ${styleNo}</div></div></div>`;
+            // Which rate tier this row belongs to — otherwise the two ladies rows
+            // for one item look identical apart from the price.
+            const cat = catBadgeInfo(row);
             html += `<div class="igrid">
         <div class="ic"><div class="iclbl">Style No.</div><div class="icval blue">${styleNo}</div></div>
         <div class="ic"><div class="iclbl">Size</div><div class="icval green sm">${size}</div></div>
+        ${cat ? `<div class="ic"><div class="iclbl">Category</div><div class="icval ${cat.cls === 'a' ? 'pink' : cat.cls === 'b' ? 'amber' : 'blue'} sm">${cat.txt}</div></div>` : ''}
       </div>`;
             html += `<div class="stock-card ${stockState}"><div class="stock-ico">${stockIcons[stockState]}</div><div class="stock-info"><div class="stock-lbl">${stockLabel}</div><div class="stock-val">${stockNum}</div><div class="stock-tag">${stockTag}</div></div></div>`;
             if (imgSrc || imageUrl) {
@@ -3282,9 +3345,12 @@
                 const row = JSON.parse(document.getElementById('res').dataset.row || '{}');
                 const stockRaw = row[COL.stock];
                 const stockDisplay = (stockRaw === '' || stockRaw === null || stockRaw === undefined) ? 'Not Updated' : (Number(stockRaw) === 0 ? 'Out of Stock (0)' : stockRaw);
+                const cat = catBadgeInfo(row);
                 const txt = [
                     `Unique Key: ${row[COL.key]}`, `Style No.: ${row[COL.styleNo]}`,
-                    `Size: ${row[COL.size]}`, `Rate: ₹${row[COL.rate]}`,
+                    `Size: ${row[COL.size]}`,
+                    ...(cat ? [`Category: ${cat.txt}`] : []),
+                    `Rate: ₹${row[COL.rate]}`,
                     `Stock: ${stockDisplay}`, `Timestamp: ${row[COL.timestamp]}`,
                     `Image Link: ${row[COL.image]}`,
                     ...(row[COL.generated] ? [`Generated Image: ${row[COL.generated]}`] : [])
