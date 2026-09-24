@@ -2326,6 +2326,110 @@
             height: 14px
         }
 
+        /* Sits under the sticky header and scrolls away with the page — loud
+           enough to notice on arrival, not a permanent fixture. */
+        .freshbar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 6px 14px;
+            font-size: 11.5px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            background: var(--blue-lt);
+            color: var(--t2);
+        }
+
+        .fresh-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--t3);
+            flex-shrink: 0;
+        }
+
+        .freshbar.fresh {
+            background: var(--green-lt);
+            color: #0b7a58
+        }
+
+        .freshbar.fresh .fresh-dot {
+            background: var(--green)
+        }
+
+        .freshbar.aging {
+            background: var(--amber-lt);
+            color: #a85600
+        }
+
+        .freshbar.aging .fresh-dot {
+            background: var(--amber)
+        }
+
+        /* A day or more old — the case this bar exists for. */
+        .freshbar.stale {
+            background: var(--red-lt);
+            color: var(--red)
+        }
+
+        .freshbar.stale .fresh-dot {
+            background: var(--red)
+        }
+
+        .freshbar.stale .fresh-txt {
+            font-weight: 700
+        }
+
+        .fresh-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            border: 1.5px solid currentColor;
+            background: rgba(255, 255, 255, .7);
+            color: inherit;
+            border-radius: 20px;
+            padding: 2px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all .15s;
+            flex-shrink: 0;
+        }
+
+        .fresh-btn:hover {
+            background: #fff
+        }
+
+        .fresh-btn svg {
+            width: 11px;
+            height: 11px
+        }
+
+        /* While a fetch is in flight the button would just queue another one. */
+        .freshbar.checking .fresh-btn {
+            opacity: .5;
+            pointer-events: none
+        }
+
+        .freshbar.checking .fresh-dot {
+            animation: freshPulse 1s ease-in-out infinite
+        }
+
+        @keyframes freshPulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .25
+            }
+        }
+
         .ftr {
             position: relative;
             z-index: 1;
@@ -2545,6 +2649,21 @@
             <span id="pillTxt">Loading…</span>
         </div>
     </header>
+
+    <!-- Data age, right under the header — the footer line was too easy to miss,
+         so nobody noticed they were reading days-old prices. -->
+    <div class="freshbar" id="freshBar">
+        <span class="fresh-dot"></span>
+        <span class="fresh-txt" id="freshTxt">Checking for updates…</span>
+        <button class="fresh-btn" id="freshBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"
+                stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-.42-4" />
+            </svg>
+            Refresh now
+        </button>
+    </div>
 
     <!-- ═══════ HOME VIEW ═══════ -->
     <main class="wrap" id="homeView">
@@ -2985,22 +3104,38 @@
            Cached rows paint immediately, then a network fetch runs in parallel and
            swaps in fresher data when it lands. No polling — a refresh happens only
            on page load or an explicit click. */
-        const CACHE_KEY = 'iil_cache_v1';
+        /* Bump CACHE_VER to retire every browser's saved rows — on the next load
+           readCache() finds nothing, so the sheet is fetched fresh instead of the
+           stale copy being painted first. */
+        const CACHE_VER = 2;
+        const CACHE_KEY = 'iil_cache_v' + CACHE_VER;
         let lastRaw = '';        // JSON of the rows currently in `products`
         let dataTs = 0;          // when those rows were fetched
         let fromCache = false;
         let checking = false;
         let offline = false;
 
+        // Older iil_cache_v* entries would otherwise sit in localStorage forever,
+        // eating the quota that the current one needs.
+        function pruneOldCaches() {
+            try {
+                for (let i = localStorage.length - 1; i >= 0; i--) {
+                    const k = localStorage.key(i);
+                    if (k && /^iil_cache_v\d+$/.test(k) && k !== CACHE_KEY) localStorage.removeItem(k);
+                }
+            } catch (e) { /* private mode — nothing to prune */ }
+        }
+
         function readCache() {
             try {
                 const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
-                return (c && Array.isArray(c.data) && c.data.length) ? c : null;
+                if (!c || c.ver !== CACHE_VER) return null;
+                return (Array.isArray(c.data) && c.data.length) ? c : null;
             } catch (e) { return null; }
         }
         function writeCache(data) {
             try {
-                localStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data }));
+                localStorage.setItem(CACHE_KEY, JSON.stringify({ ver: CACHE_VER, savedAt: Date.now(), data }));
             } catch (e) { /* quota or private mode — the cache is optional */ }
         }
         function agoTxt(ts) {
@@ -3009,7 +3144,10 @@
             if (s < 60) return 'just now';
             if (s < 3600) return Math.floor(s / 60) + ' min ago';
             if (s < 86400) return Math.floor(s / 3600) + ' hr ago';
-            return new Date(ts).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+            // "2 days ago" lands harder than a bare date when the point is age.
+            const d = Math.floor(s / 86400);
+            if (d < 30) return d === 1 ? 'yesterday' : d + ' days ago';
+            return 'on ' + new Date(ts).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
         }
 
         function paintStatus() {
@@ -3028,6 +3166,52 @@
             else if (checking) ftr = `${n} items · checking for updates…`;
             else ftr = `${fromCache ? 'Cached' : 'Live'} data · ${n} items · updated ${agoTxt(dataTs)}`;
             document.getElementById('ftrTxt').textContent = ftr;
+
+            paintFreshBar();
+        }
+
+        /* The whole point of the bar: make "this is two-day-old data" obvious at a
+           glance, and colour-code it so nobody has to read the sentence to know. */
+        const FRESH_OK = 6 * 3600e3;     // under 6 hr — green, no action needed
+        const FRESH_AGING = 24 * 3600e3; // 6–24 hr — amber, worth a refresh
+        // A refresh that lands on identical rows changes nothing on screen, so
+        // acknowledge the click explicitly for a few seconds.
+        const REFRESH_OK_MS = 4000;
+        let refreshOkAt = 0;
+
+        function paintFreshBar() {
+            const bar = document.getElementById('freshBar');
+            if (!bar) return;
+            const n = products.length;
+            const age = dataTs ? Date.now() - dataTs : Infinity;
+
+            let cls = '', txt;
+            if (checking && !n) {
+                cls = 'checking'; txt = 'Loading data from the sheet…';
+            } else if (!n) {
+                cls = 'stale'; txt = 'No data loaded — check your connection and refresh.';
+            } else if (offline) {
+                // Say the refresh failed, otherwise a click that changes nothing
+                // looks like the button is broken.
+                cls = 'stale'; txt = `Couldn't reach the sheet — still showing data from ${agoTxt(dataTs)}. Check your internet and try again.`;
+            } else if (checking) {
+                // Never lead with "Data updated" here — it reads as "done!", and
+                // when the check finishes the bar snapping back to red looks like
+                // the refresh undid itself.
+                cls = 'checking'; txt = 'Checking the sheet for the latest data…';
+            } else if (Date.now() - refreshOkAt < REFRESH_OK_MS) {
+                cls = 'fresh'; txt = '✓ Updated — you now have the latest data';
+            } else if (age >= FRESH_AGING) {
+                const d = Math.floor(age / 86400e3);
+                cls = 'stale'; txt = `This data is ${d} day${d === 1 ? '' : 's'} old — refresh for the latest prices & stock.`;
+            } else if (age >= FRESH_OK) {
+                cls = 'aging'; txt = `Data updated ${agoTxt(dataTs)} — refresh if you need the latest.`;
+            } else {
+                cls = 'fresh'; txt = `Data updated ${agoTxt(dataTs)}`;
+            }
+
+            bar.className = 'freshbar' + (cls ? ' ' + cls : '');
+            document.getElementById('freshTxt').textContent = txt;
         }
 
         /* ═════════ Data load ═════════ */
@@ -3122,6 +3306,7 @@
         async function refresh() {
             if (checking) return;               // guard double-click / double-fire
             checking = true;
+            refreshOkAt = 0;                    // drop the previous "✓ Updated"
             const hadData = products.length > 0;
             paintStatus();
             try {
@@ -3139,6 +3324,8 @@
                 dataTs = Date.now();
                 fromCache = false;
                 offline = false;
+                refreshOkAt = Date.now();
+                setTimeout(paintFreshBar, REFRESH_OK_MS + 50);   // settle back to the normal line
                 setSts(changed && hadData ? '✓ Updated with latest sheet data' : '', changed && hadData ? 'ok' : '');
                 if (changed && hadData) setTimeout(() => setSts('', ''), 2500);
             } catch (e) {
@@ -3162,6 +3349,7 @@
 
         /* Paint cached rows straight away, then revalidate over the network. */
         function boot() {
+            pruneOldCaches();
             const c = readCache();
             if (c) {
                 applyData(c.data, JSON.stringify(c.data));
@@ -4774,6 +4962,10 @@
 
         /* ═════════ Boot ═════════ */
         document.getElementById('refreshBtn').addEventListener('click', () => refresh());
+        document.getElementById('freshBtn').addEventListener('click', () => refresh());
+        // Without a tick the bar would still read "just now" an hour later, which
+        // is exactly the false reassurance it's meant to prevent.
+        setInterval(paintFreshBar, 60000);
         boot();
     </script>
 </body>
