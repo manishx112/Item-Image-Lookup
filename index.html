@@ -2430,6 +2430,98 @@
             }
         }
 
+        .cat-pager {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px;
+            padding: 16px 0 6px;
+        }
+
+        .cat-pg {
+            min-width: 32px;
+            border: 1.5px solid var(--border2);
+            background: var(--white);
+            color: var(--t2);
+            border-radius: 9px;
+            padding: 6px 9px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: all .15s;
+        }
+
+        .cat-pg:hover:not(:disabled):not(.on) {
+            border-color: var(--blue);
+            color: var(--blue)
+        }
+
+        .cat-pg.on {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: #fff;
+            cursor: default;
+        }
+
+        .cat-pg:disabled {
+            opacity: .4;
+            cursor: not-allowed
+        }
+
+        .cat-pg.nav {
+            padding: 6px 12px
+        }
+
+        .cat-pg-gap {
+            color: var(--t3);
+            font-size: 12px;
+            font-weight: 700;
+            padding: 0 2px;
+        }
+
+        .cat-bad-note {
+            margin: 0 0 9px;
+            padding: 8px 12px;
+            background: var(--amber-lt);
+            border: 1.5px solid var(--amber-md);
+            border-radius: var(--rsm);
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #a85600;
+        }
+
+        /* A Drive file that refused to load, as opposed to a row with no link.
+           It links to the file so the sharing setting is one click away. */
+        .cat-img-ph.bad {
+            color: var(--amber);
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .cat-img-ph.bad:hover {
+            text-decoration: underline
+        }
+
+        .cat-bad-copy {
+            margin-left: 6px;
+            border: 1.5px solid var(--amber-md);
+            background: var(--white);
+            color: #a85600;
+            border-radius: 20px;
+            padding: 2px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .cat-bad-copy:hover {
+            background: var(--amber-lt)
+        }
+
         .ftr {
             position: relative;
             z-index: 1;
@@ -2860,7 +2952,11 @@
             </div>
         </div>
 
+        <div class="cat-bad-note" id="catBadNote" style="display:none"></div>
+
         <div class="cat-grid" id="catGrid"></div>
+
+        <div class="cat-pager" id="catPager" style="display:none"></div>
 
         <div class="sel-bar" id="selBar">
             <span class="sel-bar-count" id="selCount">0 selected</span>
@@ -3091,13 +3187,20 @@
         let pdfPerPage = 2;
 
         /* ═════════ Drive image URL ═════════ */
-        function driveImg(url) {
+        // The sheet carries both /file/d/<id>/view and open?id=<id> shapes.
+        function driveId(url) {
             if (!url) return null;
-            const m = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
-            if (m) return `https://lh3.googleusercontent.com/d/${m[1]}`;
-            const m2 = url.match(/id=([a-zA-Z0-9_-]{10,})/);
-            if (m2) return `https://lh3.googleusercontent.com/d/${m2[1]}`;
-            return null;
+            const m = String(url).match(/\/d\/([a-zA-Z0-9_-]{10,})/) || String(url).match(/id=([a-zA-Z0-9_-]{10,})/);
+            return m ? m[1] : null;
+        }
+        function driveImg(url) {
+            const id = driveId(url);
+            return id ? `https://lh3.googleusercontent.com/d/${id}` : null;
+        }
+        // Second host to try when the first 404s — the two are served by different
+        // Google front-ends and one occasionally answers when the other doesn't.
+        function driveImgAlt(id) {
+            return `https://drive.google.com/thumbnail?id=${id}&sz=w1000`;
         }
 
         /* ═════════ Cache ═════════
@@ -3758,46 +3861,46 @@
             msRenderAll();
         }
 
-        function renderCatalog() {
-            const filtered = applySort(applyFilters(products));
-            document.getElementById('catShowingTxt').textContent = filtered.length;
-            document.getElementById('catTotalTxt').textContent = products.length;
+        /* ═════════ Catalog rendering (paged) ═════════
+           Every card carries a Drive image, so painting all ~550 at once fires
+           ~550 requests at Google in one go. Render a page at a time and let the
+           rest load on scroll — the exports still cover the whole filtered set. */
+        const CAT_PAGE = 50;          // cards — and therefore Drive requests — per page
+        let catPage = 0;              // zero-based index of the page on screen
+        let catFiltered = [];
 
-            const grid = document.getElementById('catGrid');
-            if (!filtered.length) {
-                grid.innerHTML = `<div class="cat-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-          <div>No items match the current filters.</div>
-        </div>`;
-                updateSelBar();
-                return;
-            }
+        function catCardHtml(r) {
+            const k = r[COL.key];
+            const uid = r.__uid;
+            const isSel = selected.has(uid);
+            const imgSrc = driveImg(rowImgUrl(r));
+            const showingGen = isGeneratedShown(r);
+            const stk = r[COL.stock];
+            const sSt = stockState(stk);
+            let stkTxt;
+            if (sSt === 'na') stkTxt = 'N/A';
+            else if (sSt === 'out') stkTxt = 'Out';
+            else stkTxt = Number(stk).toLocaleString();
 
-            grid.innerHTML = filtered.map(r => {
-                const k = r[COL.key];
-                const uid = r.__uid;
-                const isSel = selected.has(uid);
-                const imgSrc = driveImg(rowImgUrl(r));
-                const showingGen = isGeneratedShown(r);
-                const stk = r[COL.stock];
-                const sSt = stockState(stk);
-                let stkTxt;
-                if (sSt === 'na') stkTxt = 'N/A';
-                else if (sSt === 'out') stkTxt = 'Out';
-                else stkTxt = Number(stk).toLocaleString();
+            const sType = cellVal(r[COL.stockType]);
+            const grp = String(r[COL.group] || '').trim().toUpperCase();
+            let gBadgeCls = '', gBadgeTxt = '';
+            if (grp === 'MALE') { gBadgeCls = 'male'; gBadgeTxt = 'MEN'; }
+            else if (grp === 'A') { gBadgeCls = 'a'; gBadgeTxt = 'CAT A'; }
+            else if (grp === 'B') { gBadgeCls = 'b'; gBadgeTxt = 'CAT B'; }
 
-                const sType = cellVal(r[COL.stockType]);
-                const grp = String(r[COL.group] || '').trim().toUpperCase();
-                let gBadgeCls = '', gBadgeTxt = '';
-                if (grp === 'MALE') { gBadgeCls = 'male'; gBadgeTxt = 'MEN'; }
-                else if (grp === 'A') { gBadgeCls = 'a'; gBadgeTxt = 'CAT A'; }
-                else if (grp === 'B') { gBadgeCls = 'b'; gBadgeTxt = 'CAT B'; }
+            // A URL that fails here is a Drive sharing problem, not a missing link —
+            // say which, so the sheet can be fixed instead of guessed at.
+            const fid = driveId(rowImgUrl(r));
+            const imgHtml = imgSrc
+                ? `<img src="${imgSrc}" loading="lazy" decoding="async" data-fid="${fid || ''}" data-key="${String(k).replace(/"/g, '&quot;')}" onerror="catImgFail(this)">`
+                : `<div class="cat-img-ph">No image link</div>`;
 
-                return `<div class="cat-card${isSel ? ' selected' : ''}" data-uid="${uid}">
+            return `<div class="cat-card${isSel ? ' selected' : ''}" data-uid="${uid}">
           <div class="cat-img">
             ${(!hideGender && gBadgeTxt) ? `<span class="cat-gen-badge ${gBadgeCls}">${gBadgeTxt}</span>` : ''}
             ${showingGen ? `<span class="cat-ai-badge">AI</span>` : ''}
-            ${imgSrc ? `<img src="${imgSrc}" loading="lazy" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('beforeend','<div class=cat-img-ph>No image</div>')">` : `<div class="cat-img-ph">No image</div>`}
+            ${imgHtml}
           </div>
           <div class="cat-body">
             <div class="cat-key">${k}</div>
@@ -3811,9 +3914,51 @@
             </div>
           </div>
         </div>`;
-            }).join('');
+        }
 
-            grid.querySelectorAll('.cat-card').forEach(card => {
+        /* Drive serves an image only when the file is shared with "Anyone with the
+           link". A 404 here almost always means that one file is still private. */
+        window.catImgFail = function (img) {
+            const fid = img.dataset.fid;
+            // One retry on the other Google host before declaring it broken.
+            if (fid && !img.dataset.retried) {
+                img.dataset.retried = '1';
+                img.src = driveImgAlt(fid);
+                return;
+            }
+            img.style.display = 'none';
+            const wrap = img.parentNode;
+            if (wrap.querySelector('.cat-img-ph')) return;
+            wrap.insertAdjacentHTML('beforeend',
+                `<a class="cat-img-ph bad" href="https://drive.google.com/file/d/${fid}/view" target="_blank" rel="noopener"
+                    title="Google Drive would not serve this file to a signed-out viewer. Open it and set sharing to &quot;Anyone with the link&quot;.">Image blocked · open in Drive</a>`);
+            if (img.dataset.key && !catBadKeys.includes(img.dataset.key)) catBadKeys.push(img.dataset.key);
+            catBadImgs++;
+            paintCatBadNote();
+        };
+
+        let catBadImgs = 0;
+        let catBadKeys = [];
+        function paintCatBadNote() {
+            const el = document.getElementById('catBadNote');
+            if (!el) return;
+            if (!catBadImgs) { el.style.display = 'none'; return; }
+            el.innerHTML = `⚠ <b>${catBadImgs}</b> image${catBadImgs === 1 ? '' : 's'} here would not load. `
+                + `The link works for you because you own the file — Drive refuses it for anyone signed out. `
+                + `Open one in an incognito window to confirm, then set sharing to "Anyone with the link". `
+                + `<button class="cat-bad-copy" id="catBadCopy" type="button">Copy the ${catBadImgs} item number${catBadImgs === 1 ? '' : 's'}</button>`;
+            el.style.display = 'block';
+            const btn = document.getElementById('catBadCopy');
+            if (btn) btn.addEventListener('click', () => {
+                navigator.clipboard.writeText(catBadKeys.join('\n')).then(() => {
+                    btn.textContent = '✓ Copied';
+                    setTimeout(() => paintCatBadNote(), 2000);
+                }).catch(() => { btn.textContent = catBadKeys.join(', '); });
+            });
+        }
+
+        function bindCatCards(nodes) {
+            nodes.forEach(card => {
                 card.addEventListener('click', () => {
                     const uid = Number(card.dataset.uid);
                     if (selected.has(uid)) selected.delete(uid);
@@ -3822,7 +3967,86 @@
                     updateSelBar();
                 });
             });
+        }
+
+        /* Real pages, not an ever-growing list: the grid holds one page of cards
+           and moving on replaces them. Appending would leave every image from
+           every page loaded, which is the egress this is meant to avoid. */
+        function pageCount() {
+            return Math.max(1, Math.ceil(catFiltered.length / CAT_PAGE));
+        }
+
+        function paintCatPager() {
+            const wrap = document.getElementById('catPager');
+            if (!wrap) return;
+            const pages = pageCount();
+            if (catFiltered.length <= CAT_PAGE) { wrap.style.display = 'none'; return; }
+
+            // A window of numbers around the current page, with the ends pinned so
+            // first/last are always one click away.
+            const cur = catPage, last = pages - 1;
+            const nums = new Set([0, last, cur, cur - 1, cur + 1]);
+            if (cur <= 2) { nums.add(1); nums.add(2); nums.add(3); }
+            if (cur >= last - 2) { nums.add(last - 1); nums.add(last - 2); nums.add(last - 3); }
+            const list = [...nums].filter(n => n >= 0 && n <= last).sort((a, b) => a - b);
+
+            let html = `<button class="cat-pg nav" data-pg="${cur - 1}"${cur === 0 ? ' disabled' : ''}>‹ Prev</button>`;
+            let prev = -1;
+            list.forEach(n => {
+                if (prev >= 0 && n - prev > 1) html += `<span class="cat-pg-gap">…</span>`;
+                html += `<button class="cat-pg${n === cur ? ' on' : ''}" data-pg="${n}">${n + 1}</button>`;
+                prev = n;
+            });
+            html += `<button class="cat-pg nav" data-pg="${cur + 1}"${cur === last ? ' disabled' : ''}>Next ›</button>`;
+            wrap.innerHTML = html;
+            wrap.style.display = 'flex';
+        }
+
+        function paintCatCounts() {
+            const from = catFiltered.length ? catPage * CAT_PAGE + 1 : 0;
+            const to = Math.min((catPage + 1) * CAT_PAGE, catFiltered.length);
+            document.getElementById('catShowingTxt').textContent = catFiltered.length ? `${from}–${to}` : '0';
+            document.getElementById('catTotalTxt').textContent = catFiltered.length;
+        }
+
+        // Paints one page. Filters call renderCatalog(), which resets to page 1.
+        function paintCatPage() {
+            // Only this page's failures matter; the note is per page.
+            catBadImgs = 0;
+            catBadKeys = [];
+            paintCatBadNote();
+
+            const grid = document.getElementById('catGrid');
+            if (!catFiltered.length) {
+                grid.innerHTML = `<div class="cat-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          <div>No items match the current filters.</div>
+        </div>`;
+            } else {
+                const start = catPage * CAT_PAGE;
+                grid.innerHTML = catFiltered.slice(start, start + CAT_PAGE).map(catCardHtml).join('');
+                bindCatCards([...grid.querySelectorAll('.cat-card')]);
+            }
+            paintCatCounts();
+            paintCatPager();
             updateSelBar();
+        }
+
+        function renderCatalog() {
+            catFiltered = applySort(applyFilters(products));
+            catPage = 0;                 // a changed filter always starts at page 1
+            paintCatPage();
+        }
+
+        function goCatPage(n) {
+            const last = pageCount() - 1;
+            n = Math.max(0, Math.min(last, n));
+            if (n === catPage) return;
+            catPage = n;
+            paintCatPage();
+            // Land at the top of the grid rather than wherever the click happened.
+            const top = document.querySelector('.cat-toolbar');
+            if (top) window.scrollTo({ top: Math.max(0, top.offsetTop - 60), behavior: 'smooth' });
         }
 
         function updateSelBar() {
@@ -4186,7 +4410,17 @@
         });
 
         document.getElementById('clearSelBtn').addEventListener('click', () => {
-            selected.clear(); renderCatalog();
+            // Just drop the highlight — a full re-render would reset paging and
+            // re-request every image already on screen.
+            selected.clear();
+            document.querySelectorAll('.cat-card.selected').forEach(c => c.classList.remove('selected'));
+            updateSelBar();
+        });
+
+        // Delegated: the pager's buttons are rebuilt on every page change.
+        document.getElementById('catPager').addEventListener('click', e => {
+            const btn = e.target.closest('.cat-pg');
+            if (btn && !btn.disabled) goCatPage(Number(btn.dataset.pg));
         });
 
         /* ═════════ PDF Modal & Export ═════════ */
