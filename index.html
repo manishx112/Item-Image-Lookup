@@ -3187,20 +3187,54 @@
         let pdfPerPage = 2;
 
         /* ═════════ Drive image URL ═════════ */
-        // The sheet carries both /file/d/<id>/view and open?id=<id> shapes.
+        // Legacy Drive links: the sheet carried both /file/d/<id>/view and open?id=<id>.
         function driveId(url) {
             if (!url) return null;
             const m = String(url).match(/\/d\/([a-zA-Z0-9_-]{10,})/) || String(url).match(/id=([a-zA-Z0-9_-]{10,})/);
             return m ? m[1] : null;
         }
-        function driveImg(url) {
-            const id = driveId(url);
-            return id ? `https://lh3.googleusercontent.com/d/${id}` : null;
-        }
         // Second host to try when the first 404s — the two are served by different
         // Google front-ends and one occasionally answers when the other doesn't.
         function driveImgAlt(id) {
             return `https://drive.google.com/thumbnail?id=${id}&sz=w1000`;
+        }
+
+        /* Resolves whatever the Image column holds into something an <img> can use.
+           Images now live on ImageKit, but old Drive links still have to work, and
+           anything else is passed through untouched.
+
+           `w` asks the CDN for a resized copy. Cards only ever display ~220px, so
+           shipping the full-size original for each is wasted egress — ImageKit
+           resizes at the edge and the saving is most of the transfer. */
+        function imgUrl(url, w) {
+            if (!url) return null;
+            const raw = String(url).trim();
+            if (!raw) return null;
+
+            const id = driveId(raw);
+            if (id) return `https://lh3.googleusercontent.com/d/${id}`;
+
+            if (!/^https?:\/\//i.test(raw)) return null;   // not a usable URL
+            if (w && /(^|\.)imagekit\.io\//i.test(raw)) {
+                // f-auto is omitted deliberately: ImageKit already negotiates WebP
+                // from the browser's Accept header, so it would only add bytes.
+                return raw + (raw.includes('?') ? '&' : '?') + `tr=w-${w},q-70`;
+            }
+            return raw;
+        }
+
+        // Kept as the "full size, no transform" form used by the exports.
+        function driveImg(url) { return imgUrl(url); }
+
+        /* The result panel sits in a 560px-wide column, so the image never renders
+           above ~530px. w-900 was sending roughly three times the pixels shown;
+           capping at 700 keeps it sharp on a retina screen for a third of the
+           bytes. Full quality still comes from the PDF/ZIP exports. */
+        const DETAIL_W_BUCKETS = [400, 500, 600, 700];
+        function detailImgW() {
+            const shown = Math.min(530, (window.innerWidth || 560) - 30);
+            const need = shown * Math.min(window.devicePixelRatio || 1, 2) * 0.8;
+            return DETAIL_W_BUCKETS.find(b => b >= need) || DETAIL_W_BUCKETS[DETAIL_W_BUCKETS.length - 1];
         }
 
         /* ═════════ Cache ═════════
@@ -3450,7 +3484,13 @@
         // The "Refresh data" button uses onclick="load()", so keep that name working.
         function load() { refresh(); }
 
-        /* Paint cached rows straight away, then revalidate over the network. */
+        /* Paint cached rows straight away, then revalidate over the network —
+           but not on every single load. The sheet payload is ~150 KB, so a few
+           reloads in a row used to cost more than a page of thumbnails. Inside
+           this window the cached rows are served as-is; the bar at the top shows
+           their age and Refresh always forces a real fetch. */
+        const REVALIDATE_MS = 5 * 60e3;
+
         function boot() {
             pruneOldCaches();
             const c = readCache();
@@ -3461,7 +3501,7 @@
                 setSts('', '');   // rows are already on screen; drop the static "Connecting…"
             }
             paintStatus();
-            refresh();
+            if (!c || Date.now() - c.savedAt > REVALIDATE_MS) refresh();
         }
 
         function fill(v) {
@@ -3570,9 +3610,12 @@
             const size = row[COL.size] ?? '—';
             const uniqueKey = row[COL.key] ?? '—';
             const imageUrl = row[COL.image] ?? '';
-            const imgSrc = driveImg(imageUrl);
+            // One big image on screen — 900px is plenty, and still far less than
+            // the original. Exports keep using the untransformed URL.
+            const dw = detailImgW();
+            const imgSrc = imgUrl(imageUrl, dw);
             const genUrl = row[COL.generated] ?? '';
-            const genSrc = driveImg(genUrl);
+            const genSrc = imgUrl(genUrl, dw);
             const stockRaw = row[COL.stock];
 
             let stockState, stockLabel, stockNum, stockTag;
@@ -3865,7 +3908,28 @@
            Every card carries a Drive image, so painting all ~550 at once fires
            ~550 requests at Google in one go. Render a page at a time and let the
            rest load on scroll — the exports still cover the whole filtered set. */
-        const CAT_PAGE = 50;          // cards — and therefore Drive requests — per page
+        const CAT_PAGE = 50;          // cards — and therefore image requests — per page
+
+        /* Transfer size scales with the square of the requested width, so asking
+           the CDN for the width actually shown is the single biggest saving:
+           measured on one catalog photo, w-200 is 12.7 KB against 61 KB at w-400.
+           Buckets keep the URLs cacheable instead of one variant per viewport. */
+        const CARD_W_BUCKETS = [160, 200, 250, 320, 400];
+        let cardImgW = 250;           // recomputed from the real card width per render
+
+        function computeCardImgW() {
+            const grid = document.getElementById('catGrid');
+            const gw = (grid && grid.clientWidth) || window.innerWidth || 1200;
+            const narrow = window.innerWidth <= 600;
+            const gap = narrow ? 8 : 12;
+            // Mirrors the grid CSS: 2 columns on phones, auto-fill minmax(170px) above.
+            const cols = narrow ? 2 : Math.max(1, Math.floor((gw + gap) / (170 + gap)));
+            const cardW = (gw - gap * (cols - 1)) / cols;
+            // Cap the device ratio at 2 and trim 15%: a thumbnail tolerates slight
+            // softness, and without this a 3× phone would pull a 600px file per card.
+            const need = cardW * Math.min(window.devicePixelRatio || 1, 2) * 0.85;
+            return CARD_W_BUCKETS.find(w => w >= need) || CARD_W_BUCKETS[CARD_W_BUCKETS.length - 1];
+        }
         let catPage = 0;              // zero-based index of the page on screen
         let catFiltered = [];
 
@@ -3873,7 +3937,7 @@
             const k = r[COL.key];
             const uid = r.__uid;
             const isSel = selected.has(uid);
-            const imgSrc = driveImg(rowImgUrl(r));
+            const imgSrc = imgUrl(rowImgUrl(r), cardImgW);
             const showingGen = isGeneratedShown(r);
             const stk = r[COL.stock];
             const sSt = stockState(stk);
@@ -3889,8 +3953,8 @@
             else if (grp === 'A') { gBadgeCls = 'a'; gBadgeTxt = 'CAT A'; }
             else if (grp === 'B') { gBadgeCls = 'b'; gBadgeTxt = 'CAT B'; }
 
-            // A URL that fails here is a Drive sharing problem, not a missing link —
-            // say which, so the sheet can be fixed instead of guessed at.
+            // Only Drive links have a retry host and a "open the file" target; for
+            // any other host a failure is just a dead URL.
             const fid = driveId(rowImgUrl(r));
             const imgHtml = imgSrc
                 ? `<img src="${imgSrc}" loading="lazy" decoding="async" data-fid="${fid || ''}" data-key="${String(k).replace(/"/g, '&quot;')}" onerror="catImgFail(this)">`
@@ -3929,9 +3993,11 @@
             img.style.display = 'none';
             const wrap = img.parentNode;
             if (wrap.querySelector('.cat-img-ph')) return;
-            wrap.insertAdjacentHTML('beforeend',
-                `<a class="cat-img-ph bad" href="https://drive.google.com/file/d/${fid}/view" target="_blank" rel="noopener"
-                    title="Google Drive would not serve this file to a signed-out viewer. Open it and set sharing to &quot;Anyone with the link&quot;.">Image blocked · open in Drive</a>`);
+            wrap.insertAdjacentHTML('beforeend', fid
+                ? `<a class="cat-img-ph bad" href="https://drive.google.com/file/d/${fid}/view" target="_blank" rel="noopener"
+                    title="Google Drive would not serve this file to a signed-out viewer. Open it and set sharing to &quot;Anyone with the link&quot;.">Image blocked · open in Drive</a>`
+                : `<a class="cat-img-ph bad" href="${img.dataset.src || img.src}" target="_blank" rel="noopener"
+                    title="The image host did not return this file. Open the link to check it.">Image failed · open link</a>`);
             if (img.dataset.key && !catBadKeys.includes(img.dataset.key)) catBadKeys.push(img.dataset.key);
             catBadImgs++;
             paintCatBadNote();
@@ -3943,9 +4009,8 @@
             const el = document.getElementById('catBadNote');
             if (!el) return;
             if (!catBadImgs) { el.style.display = 'none'; return; }
-            el.innerHTML = `⚠ <b>${catBadImgs}</b> image${catBadImgs === 1 ? '' : 's'} here would not load. `
-                + `The link works for you because you own the file — Drive refuses it for anyone signed out. `
-                + `Open one in an incognito window to confirm, then set sharing to "Anyone with the link". `
+            el.innerHTML = `⚠ <b>${catBadImgs}</b> image${catBadImgs === 1 ? '' : 's'} on this page would not load. `
+                + `Click a card's placeholder to open the link and see what the host returns. `
                 + `<button class="cat-bad-copy" id="catBadCopy" type="button">Copy the ${catBadImgs} item number${catBadImgs === 1 ? '' : 's'}</button>`;
             el.style.display = 'block';
             const btn = document.getElementById('catBadCopy');
@@ -4011,6 +4076,7 @@
 
         // Paints one page. Filters call renderCatalog(), which resets to page 1.
         function paintCatPage() {
+            cardImgW = computeCardImgW();
             // Only this page's failures matter; the note is per page.
             catBadImgs = 0;
             catBadKeys = [];
@@ -4421,6 +4487,18 @@
         document.getElementById('catPager').addEventListener('click', e => {
             const btn = e.target.closest('.cat-pg');
             if (btn && !btn.disabled) goCatPage(Number(btn.dataset.pg));
+        });
+
+        /* Only repaint on resize when the width bucket actually changes —
+           otherwise every drag of the window edge re-requests 50 images. */
+        let catResizeTmr;
+        window.addEventListener('resize', () => {
+            clearTimeout(catResizeTmr);
+            catResizeTmr = setTimeout(() => {
+                if (currentTab !== 'stock' || !catFiltered.length) return;
+                if (computeCardImgW() === cardImgW) return;
+                paintCatPage();
+            }, 300);
         });
 
         /* ═════════ PDF Modal & Export ═════════ */
