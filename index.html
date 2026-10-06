@@ -1938,6 +1938,402 @@
             border: 1px solid var(--amber-md)
         }
 
+        /* Clicking a card selects it, so viewing needs its own target. */
+        .cat-view {
+            margin-left: auto;
+            width: 30px;
+            height: 30px;
+            flex-shrink: 0;
+            border-radius: 8px;
+            border: 1px solid var(--blue-md);
+            background: var(--white);
+            color: var(--blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: zoom-in;
+            transition: background .15s, color .15s, border-color .15s;
+        }
+
+        .cat-view svg {
+            width: 16px;
+            height: 16px
+        }
+
+        .cat-view:hover {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: #fff
+        }
+
+        /* ── Image viewer ── */
+        .vw {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1100;
+            background: rgba(14, 17, 38, .86);
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+
+        .vw.show {
+            display: flex
+        }
+
+        .vw-box {
+            width: 100%;
+            max-width: 1120px;
+            height: min(88vh, 820px);
+            background: var(--white);
+            border-radius: var(--r);
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 300px;
+            box-shadow: 0 14px 50px rgba(0, 0, 0, .35);
+        }
+
+        .vw-stage {
+            position: relative;
+            overflow: hidden;
+            background: #11142b;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            cursor: zoom-in;
+        }
+
+        .vw-stage.zoomed {
+            cursor: grab
+        }
+
+        .vw-stage.dragging {
+            cursor: grabbing
+        }
+
+        .vw-img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transform-origin: center center;
+            will-change: transform;
+            -webkit-user-drag: none;
+        }
+
+        .vw-stage.anim .vw-img {
+            transition: transform .2s ease-out
+        }
+
+        .vw-ph {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            color: #b8bfe6;
+            font-size: 13px;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .vw-ph a {
+            color: #fff;
+            font-weight: 600
+        }
+
+        .vw-load {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, .92);
+            color: var(--t2);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 5px 12px;
+            border-radius: 20px;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .vw-x,
+        .vw-nav {
+            position: absolute;
+            border: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .92);
+            color: var(--t1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .25);
+            z-index: 2;
+        }
+
+        .vw-x {
+            top: 12px;
+            right: 12px;
+            width: 38px;
+            height: 38px
+        }
+
+        .vw-nav {
+            top: 50%;
+            transform: translateY(-50%);
+            width: 42px;
+            height: 42px
+        }
+
+        .vw-nav.prev {
+            left: 12px
+        }
+
+        .vw-nav.next {
+            right: 12px
+        }
+
+        .vw-x svg,
+        .vw-nav svg {
+            width: 20px;
+            height: 20px
+        }
+
+        .vw-x:hover,
+        .vw-nav:hover:not(:disabled) {
+            background: #fff;
+            color: var(--blue)
+        }
+
+        .vw-nav:disabled {
+            opacity: .3;
+            cursor: default
+        }
+
+        .vw-tools {
+            position: absolute;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            padding: 4px;
+            border-radius: 11px;
+            background: rgba(255, 255, 255, .95);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .25);
+            z-index: 2;
+        }
+
+        .vw-tools button {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--t1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .vw-tools button svg {
+            width: 17px;
+            height: 17px
+        }
+
+        .vw-tools button:hover:not(:disabled) {
+            background: var(--blue-lt);
+            color: var(--blue)
+        }
+
+        .vw-tools button:disabled {
+            opacity: .35;
+            cursor: default
+        }
+
+        .vw-zoomtxt {
+            min-width: 48px;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--t2);
+        }
+
+        .vw-side {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1.5px solid var(--border);
+        }
+
+        .vw-key {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 19px;
+            font-weight: 700;
+            color: var(--t1);
+            overflow-wrap: anywhere;
+        }
+
+        .vw-sub {
+            font-size: 12px;
+            color: var(--t3);
+            margin-top: 3px
+        }
+
+        .vw-rate {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--blue);
+            line-height: 1;
+        }
+
+        .vw-rate span {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--t3);
+            margin-left: 6px
+        }
+
+        .vw-dl {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 10px 14px;
+            margin: 0;
+            font-size: 13px;
+            align-items: center;
+        }
+
+        .vw-dl dt {
+            color: var(--t3);
+            font-weight: 600
+        }
+
+        .vw-dl dd {
+            margin: 0;
+            color: var(--t1);
+            font-weight: 600;
+            text-align: right;
+            overflow-wrap: anywhere;
+        }
+
+        .vw-acts {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px
+        }
+
+        .vw-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 11px 14px;
+            border-radius: var(--rsm);
+            border: 1.5px solid var(--border2);
+            background: var(--white);
+            color: var(--t1);
+            font: 600 13px 'Inter', sans-serif;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .vw-btn svg {
+            width: 16px;
+            height: 16px
+        }
+
+        .vw-btn:hover {
+            border-color: var(--blue);
+            color: var(--blue)
+        }
+
+        .vw-btn.primary {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: #fff
+        }
+
+        .vw-btn.on {
+            background: var(--green-lt);
+            border-color: var(--green-md);
+            color: var(--green)
+        }
+
+        .vw-hint {
+            font-size: 11px;
+            color: var(--t3);
+            text-align: center
+        }
+
+        @media (max-width: 760px) {
+            .vw {
+                padding: 0
+            }
+
+            .vw-box {
+                height: 100%;
+                max-width: none;
+                border-radius: 0;
+                grid-template-columns: minmax(0, 1fr);
+                grid-template-rows: minmax(0, 1fr) auto;
+            }
+
+            .vw-side {
+                border-left: 0;
+                border-top: 1.5px solid var(--border);
+                max-height: 46vh;
+                padding: 14px 16px 16px;
+                gap: 12px;
+            }
+
+            .vw-dl {
+                grid-template-columns: auto 1fr auto 1fr;
+                gap: 8px 10px;
+                font-size: 12px;
+            }
+
+            .vw-rate {
+                font-size: 24px
+            }
+
+            .vw-acts {
+                flex-direction: row
+            }
+
+            .vw-btn {
+                flex: 1;
+                padding: 10px
+            }
+
+            .vw-nav {
+                width: 36px;
+                height: 36px
+            }
+
+            .vw-nav.prev {
+                left: 8px
+            }
+
+            .vw-nav.next {
+                right: 8px
+            }
+        }
+
         .cat-empty {
             grid-column: 1 / -1;
             text-align: center;
@@ -3150,6 +3546,39 @@
         </div>
     </div>
 
+    <!-- ═══════ Image viewer (catalog card "view" button) ═══════ -->
+    <div class="vw" id="vw" role="dialog" aria-modal="true" aria-label="Image viewer">
+        <div class="vw-box">
+            <div class="vw-stage" id="vwStage">
+                <img class="vw-img" id="vwImg" alt="" draggable="false">
+                <div class="vw-ph" id="vwPh" style="display:none"></div>
+                <div class="vw-load" id="vwLoad" style="display:none"></div>
+                <button class="vw-x" id="vwClose" type="button" aria-label="Close" title="Close (Esc)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
+                <button class="vw-nav prev" id="vwPrev" type="button" aria-label="Previous item" title="Previous (←)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                </button>
+                <button class="vw-nav next" id="vwNext" type="button" aria-label="Next item" title="Next (→)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                </button>
+                <div class="vw-tools">
+                    <button id="vwOut" type="button" aria-label="Zoom out" title="Zoom out (−)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    </button>
+                    <span class="vw-zoomtxt" id="vwZoomTxt">100%</span>
+                    <button id="vwIn" type="button" aria-label="Zoom in" title="Zoom in (+)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    </button>
+                    <button id="vwFit" type="button" aria-label="Fit to screen" title="Fit to screen (0)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="vw-side" id="vwSide"></div>
+        </div>
+    </div>
+
     <footer class="ftr"><span id="ftrTxt">Connecting…</span></footer>
 
     <script>
@@ -3933,6 +4362,8 @@
         let catPage = 0;              // zero-based index of the page on screen
         let catFiltered = [];
 
+        const VIEW_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16" y2="16"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`;
+
         function catCardHtml(r) {
             const k = r[COL.key];
             const uid = r.__uid;
@@ -3975,6 +4406,7 @@
             <div class="cat-meta">
               <span class="cat-rate">₹${r[COL.rate] || '—'}</span>
               ${!hideStock ? `<span class="cat-stock-tag ${sSt}">${stkTxt}</span>` : ''}
+              <button class="cat-view" type="button" title="View &amp; zoom image" aria-label="View image">${VIEW_SVG}</button>
             </div>
           </div>
         </div>`;
@@ -4024,8 +4456,9 @@
 
         function bindCatCards(nodes) {
             nodes.forEach(card => {
-                card.addEventListener('click', () => {
+                card.addEventListener('click', e => {
                     const uid = Number(card.dataset.uid);
+                    if (e.target.closest('.cat-view')) { openViewer(uid); return; }
                     if (selected.has(uid)) selected.delete(uid);
                     else selected.add(uid);
                     card.classList.toggle('selected');
@@ -4033,6 +4466,323 @@
                 });
             });
         }
+
+        /* ═════════ Image viewer ═════════
+           Opens on the thumbnail the card already downloaded, so it appears at
+           once, then swaps in a copy sized to the viewer. The untransformed
+           original is fetched only when someone actually zooms past 150% — that
+           is the only point where its extra pixels show, and it is the heaviest
+           file, so most views never pay for it. Nothing is preloaded for the
+           next/previous item. */
+        const VIEW_W_BUCKETS = [600, 800, 1000, 1200];
+        const VW_MAX = 5;
+        const vw = { list: [], idx: -1, raw: '', s: 1, x: 0, y: 0, full: false, token: 0, seq: 0, shownSeq: 0, pending: false, ptrs: new Map(), pinch: null, drag: null, lastTap: 0 };
+        const vwEl = id => document.getElementById(id);
+
+        function viewImgW() {
+            const st = vwEl('vwStage');
+            const shown = Math.min(st.clientWidth || 600, st.clientHeight || 600);
+            const need = shown * Math.min(window.devicePixelRatio || 1, 2) * 0.9;
+            return VIEW_W_BUCKETS.find(b => b >= need) || VIEW_W_BUCKETS[VIEW_W_BUCKETS.length - 1];
+        }
+
+        function openViewer(uid) {
+            // Browses the whole filtered list, not just the page on screen.
+            vw.list = catFiltered;
+            vw.idx = catFiltered.findIndex(r => r.__uid === uid);
+            if (vw.idx < 0) return;
+            vwEl('vw').classList.add('show');
+            document.body.style.overflow = 'hidden';
+            paintViewer();
+        }
+
+        function closeViewer() {
+            vwEl('vw').classList.remove('show');
+            document.body.style.overflow = '';
+            vw.token++;                       // ignore a sharper copy still loading
+            vw.idx = -1;
+            vwEl('vwImg').removeAttribute('src');
+        }
+
+        function vwNav(d) {
+            const n = vw.idx + d;
+            if (n < 0 || n >= vw.list.length) return false;
+            vw.idx = n;
+            paintViewer();
+            return true;
+        }
+
+        function paintViewer() {
+            const r = vw.list[vw.idx];
+            if (!r) return;
+            const token = ++vw.token;
+            vw.raw = rowImgUrl(r);
+            vw.full = false;
+            const img = vwEl('vwImg');
+            vwEl('vwPh').style.display = 'none';
+            vwEl('vwLoad').style.display = 'none';
+            vwReset(false);
+
+            const thumb = imgUrl(vw.raw, cardImgW);
+            if (!thumb) {
+                img.style.display = 'none';
+                img.removeAttribute('src');
+                vwEl('vwPh').innerHTML = 'No image link for this item';
+                vwEl('vwPh').style.display = 'flex';
+            } else {
+                img.style.display = '';
+                img.onerror = () => { if (token === vw.token && !vw.pending) vwFail(); };
+                img.src = thumb;              // already in the browser cache from the card
+                vwSwap(imgUrl(vw.raw, viewImgW()), token, 'Loading sharper image…');
+            }
+            paintViewerSide(r);
+            vwEl('vwPrev').disabled = vw.idx <= 0;
+            vwEl('vwNext').disabled = vw.idx >= vw.list.length - 1;
+        }
+
+        // Loads `url` off-screen and swaps it in only if the same item is still showing.
+        function vwSwap(url, token, msg) {
+            const img = vwEl('vwImg'), load = vwEl('vwLoad');
+            if (!url || img.src === url) return;
+            load.textContent = msg;
+            load.style.display = '';
+            vw.pending = true;
+            // Requests go out in rising resolution, so a later one always wins —
+            // a slow mid-size copy must not replace a full-res one that beat it.
+            const seq = ++vw.seq;
+            const pre = new Image();
+            pre.onload = () => {
+                if (token !== vw.token || seq < vw.shownSeq) return;
+                vw.shownSeq = seq;
+                vw.pending = false;
+                img.src = url;
+                img.style.display = '';
+                vwEl('vwPh').style.display = 'none';
+                load.style.display = 'none';
+            };
+            pre.onerror = () => {
+                if (token !== vw.token) return;
+                vw.pending = false;
+                load.style.display = 'none';
+                if (!img.naturalWidth) vwFail();
+            };
+            pre.src = url;
+        }
+
+        function vwFail() {
+            vwEl('vwImg').style.display = 'none';
+            const full = imgUrl(vw.raw);
+            vwEl('vwPh').innerHTML = `Image would not load${full ? `<a href="${escHtml(full)}" target="_blank" rel="noopener">Open the link</a>` : ''}`;
+            vwEl('vwPh').style.display = 'flex';
+        }
+
+        /* ── Zoom & pan. The image fills the stage with object-fit: contain and is
+           moved with translate + scale about the stage centre. */
+        function vwBounds(s) {
+            const st = vwEl('vwStage'), img = vwEl('vwImg');
+            const W = st.clientWidth, H = st.clientHeight;
+            const ratio = (img.naturalWidth && img.naturalHeight) ? img.naturalWidth / img.naturalHeight : 1;
+            let cw = W, ch = W / ratio;
+            if (ch > H) { ch = H; cw = H * ratio; }
+            // How far the scaled picture may slide before an edge comes into view.
+            return { mx: Math.max(0, (cw * s - W) / 2), my: Math.max(0, (ch * s - H) / 2) };
+        }
+
+        function vwApply(anim) {
+            const b = vwBounds(vw.s);
+            vw.x = Math.max(-b.mx, Math.min(b.mx, vw.x));
+            vw.y = Math.max(-b.my, Math.min(b.my, vw.y));
+            const st = vwEl('vwStage');
+            st.classList.toggle('anim', !!anim);
+            st.classList.toggle('zoomed', vw.s > 1.01);
+            vwEl('vwImg').style.transform = `translate(${vw.x}px, ${vw.y}px) scale(${vw.s})`;
+            vwEl('vwZoomTxt').textContent = Math.round(vw.s * 100) + '%';
+            vwEl('vwOut').disabled = vw.s <= 1.001;
+            vwEl('vwIn').disabled = vw.s >= VW_MAX - 0.001;
+            if (vw.s > 1.5 && !vw.full && vw.idx >= 0) {
+                vw.full = true;
+                vwSwap(imgUrl(vw.raw), vw.token, 'Loading full resolution…');
+            }
+        }
+
+        // Zooms to `s` keeping the stage point (px, py), measured from the centre, still.
+        function vwZoomAt(s, px, py, anim) {
+            s = Math.max(1, Math.min(VW_MAX, s));
+            const k = s / vw.s;
+            vw.x = px - (px - vw.x) * k;
+            vw.y = py - (py - vw.y) * k;
+            vw.s = s;
+            vwApply(anim);
+        }
+
+        function vwReset(anim) { vw.s = 1; vw.x = 0; vw.y = 0; vwApply(anim); }
+
+        function vwPoint(cx, cy) {
+            const r = vwEl('vwStage').getBoundingClientRect();
+            return [cx - r.left - r.width / 2, cy - r.top - r.height / 2];
+        }
+
+        function vwFmtDate(v) {
+            const d = new Date(v);
+            return isNaN(d) ? String(v) : d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function paintViewerSide(r) {
+            const uid = r.__uid;
+            const cat = catBadgeInfo(r);
+            const sSt = stockState(r[COL.stock]);
+            const stkTxt = sSt === 'na' ? 'Not updated' : sSt === 'out' ? 'Out of stock' : Number(r[COL.stock]).toLocaleString();
+            const sType = cellVal(r[COL.stockType]);
+            const rate = r[COL.rate];
+            const isSel = selected.has(uid);
+            const full = imgUrl(vw.raw);
+            const rows = [
+                ['Style No.', escHtml(r[COL.styleNo] || '—')],
+                ['Size', escHtml(r[COL.size] || '—')],
+                cat ? ['Category', `<span class="dcat ${cat.cls}">${cat.txt}</span>`] : null,
+                sType !== 'N/A' ? ['Fit', escHtml(sType)] : null,
+                !hideStock ? ['Stock', `<span class="cat-stock-tag ${sSt}">${stkTxt}</span>`] : null,
+                isGeneratedShown(r) ? ['Image', 'AI generated'] : null,
+                hasText(r[COL.timestamp]) ? ['Added', escHtml(vwFmtDate(r[COL.timestamp]))] : null,
+            ].filter(Boolean);
+            const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+
+            vwEl('vwSide').innerHTML = `
+          <div>
+            <div class="vw-key">${escHtml(r[COL.key] || '—')}</div>
+            <div class="vw-sub">Item ${vw.idx + 1} of ${vw.list.length}</div>
+          </div>
+          <div class="vw-rate">₹${rate !== '' && rate != null ? Number(rate).toLocaleString() : '—'}<span>per unit</span></div>
+          <dl class="vw-dl">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+          <div class="vw-acts">
+            <button class="vw-btn ${isSel ? 'on' : 'primary'}" id="vwSel" type="button">${isSel ? '✓ Selected' : 'Select item'}</button>
+            ${full ? `<a class="vw-btn" href="${escHtml(full)}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Original</a>` : ''}
+          </div>
+          <div class="vw-hint">${touch ? 'Pinch or double-tap to zoom · swipe for the next item' : 'Scroll or click to zoom · drag to move · ← → next item'}</div>`;
+
+            vwEl('vwSel').addEventListener('click', () => {
+                if (selected.has(uid)) selected.delete(uid); else selected.add(uid);
+                const card = document.querySelector(`.cat-card[data-uid="${uid}"]`);
+                if (card) card.classList.toggle('selected', selected.has(uid));
+                updateSelBar();
+                paintViewerSide(r);
+            });
+        }
+
+        (function bindViewer() {
+            const box = vwEl('vw'), stage = vwEl('vwStage');
+            box.addEventListener('click', e => { if (e.target === box) closeViewer(); });
+            vwEl('vwClose').addEventListener('click', closeViewer);
+            vwEl('vwPrev').addEventListener('click', () => vwNav(-1));
+            vwEl('vwNext').addEventListener('click', () => vwNav(1));
+            vwEl('vwIn').addEventListener('click', () => vwZoomAt(vw.s * 1.5, 0, 0, true));
+            vwEl('vwOut').addEventListener('click', () => vwZoomAt(vw.s / 1.5, 0, 0, true));
+            vwEl('vwFit').addEventListener('click', () => vwReset(true));
+
+            stage.addEventListener('wheel', e => {
+                e.preventDefault();
+                const [px, py] = vwPoint(e.clientX, e.clientY);
+                // Trackpad pinches arrive as ctrl+wheel with much smaller deltas.
+                vwZoomAt(vw.s * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), px, py, false);
+            }, { passive: false });
+
+            stage.addEventListener('pointerdown', e => {
+                if (e.target.closest('button, a')) return;
+                stage.setPointerCapture(e.pointerId);
+                vw.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                if (vw.ptrs.size === 2) {
+                    const [a, b] = [...vw.ptrs.values()];
+                    vw.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, s: vw.s, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+                    vw.drag = null;
+                } else if (vw.ptrs.size === 1) {
+                    vw.drag = { x0: e.clientX, y0: e.clientY, lx: e.clientX, ly: e.clientY, tap: true, moved: false, type: e.pointerType };
+                }
+            });
+
+            stage.addEventListener('pointermove', e => {
+                if (!vw.ptrs.has(e.pointerId)) return;
+                vw.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                if (vw.pinch && vw.ptrs.size >= 2) {
+                    const [a, b] = [...vw.ptrs.values()];
+                    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+                    vw.x += mx - vw.pinch.mx;
+                    vw.y += my - vw.pinch.my;
+                    vw.pinch.mx = mx; vw.pinch.my = my;
+                    const [px, py] = vwPoint(mx, my);
+                    vwZoomAt(vw.pinch.s * Math.hypot(a.x - b.x, a.y - b.y) / vw.pinch.d, px, py, false);
+                    return;
+                }
+                const g = vw.drag;
+                if (!g) return;
+                if (!g.moved && Math.hypot(e.clientX - g.x0, e.clientY - g.y0) > 6) {
+                    g.moved = true;
+                    stage.classList.add('dragging');
+                    stage.classList.remove('anim');
+                }
+                if (!g.moved) return;
+                if (vw.s > 1.01) {
+                    vw.x += e.clientX - g.lx;
+                    vw.y += e.clientY - g.ly;
+                    vwApply(false);
+                } else if (g.tap) {
+                    // Not zoomed: let the picture follow the finger as a swipe hint.
+                    vwEl('vwImg').style.transform = `translateX(${(e.clientX - g.x0) * 0.6}px)`;
+                }
+                g.lx = e.clientX; g.ly = e.clientY;
+            });
+
+            function ptrEnd(e) {
+                if (!vw.ptrs.has(e.pointerId)) return;
+                vw.ptrs.delete(e.pointerId);
+                stage.classList.remove('dragging');
+                if (vw.pinch) {
+                    if (vw.ptrs.size < 2) vw.pinch = null;
+                    // The finger left on screen may pan, but never counts as a tap or swipe.
+                    const rest = [...vw.ptrs.values()][0];
+                    vw.drag = rest ? { x0: rest.x, y0: rest.y, lx: rest.x, ly: rest.y, tap: false, moved: true } : null;
+                    if (vw.s < 1.02) vwReset(true);
+                    return;
+                }
+                const g = vw.drag;
+                vw.drag = null;
+                if (!g) return;
+                if (e.type === 'pointercancel') { vwApply(true); return; }
+                const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
+                if (g.moved) {
+                    if (vw.s <= 1.01) {
+                        if (g.tap && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.2 && vwNav(dx < 0 ? 1 : -1)) return;
+                        vwApply(true);        // snap back
+                    }
+                    return;
+                }
+                if (!g.tap) return;
+                const [px, py] = vwPoint(e.clientX, e.clientY);
+                const toggle = () => { if (vw.s > 1.01) vwReset(true); else vwZoomAt(2.5, px, py, true); };
+                // A mouse click zooms straight away; on touch a single tap is too
+                // easy to hit by accident, so it takes a double tap.
+                if (g.type === 'mouse') { toggle(); return; }
+                const now = Date.now();
+                if (now - vw.lastTap < 300) { vw.lastTap = 0; toggle(); }
+                else vw.lastTap = now;
+            }
+            stage.addEventListener('pointerup', ptrEnd);
+            stage.addEventListener('pointercancel', ptrEnd);
+
+            document.addEventListener('keydown', e => {
+                if (!box.classList.contains('show')) return;
+                if (e.key === 'Escape') closeViewer();
+                else if (e.key === 'ArrowLeft') vwNav(-1);
+                else if (e.key === 'ArrowRight') vwNav(1);
+                else if (e.key === '+' || e.key === '=') vwZoomAt(vw.s * 1.5, 0, 0, true);
+                else if (e.key === '-' || e.key === '_') vwZoomAt(vw.s / 1.5, 0, 0, true);
+                else if (e.key === '0') vwReset(true);
+                else return;
+                e.preventDefault();
+            });
+
+            // A rotated phone or resized window changes the pan limits.
+            window.addEventListener('resize', () => { if (box.classList.contains('show')) vwApply(false); });
+        })();
 
         /* Real pages, not an ever-growing list: the grid holds one page of cards
            and moving on replaces them. Appending would leave every image from
@@ -4049,6 +4799,7 @@
 
             // A window of numbers around the current page, with the ends pinned so
             // first/last are always one click away.
+
             const cur = catPage, last = pages - 1;
             const nums = new Set([0, last, cur, cur - 1, cur + 1]);
             if (cur <= 2) { nums.add(1); nums.add(2); nums.add(3); }
