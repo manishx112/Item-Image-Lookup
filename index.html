@@ -1269,30 +1269,162 @@
             color: var(--green)
         }
 
-        /* Filter groups flow side by side on wide screens and wrap to their own
-           lines on narrow ones, instead of always stacking. */
-        .filt-wrap {
+        /* ── Filter bar ──
+           Gender switch with the item count, then the six dropdowns as one even
+           row (two rows of three on tablets, three of two on phones). */
+        .cat-filters {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .cat-top {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            gap: 7px 16px;
+            justify-content: space-between;
+            gap: 8px 12px;
         }
 
-        .filt-row {
+        .cat-seg-grp {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        /* Segmented switch: the picked option lifts out as a white tab. */
+        .seg-ctl {
             display: inline-flex;
             align-items: center;
-            gap: 7px;
-            flex-wrap: wrap;
+            gap: 2px;
+            height: 40px;
+            padding: 3px;
+            background: var(--blue-lt);
+            border: 1.5px solid var(--border2);
+            border-radius: 11px;
         }
 
-        .filt-lbl {
-            font-size: 10px;
+        .seg-ctl .fpill {
+            height: 100%;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            padding: 0 12px;
+            gap: 6px;
+            font-size: 12.5px;
+            color: var(--t2);
+            white-space: nowrap;
+        }
+
+        .seg-ctl .fpill:hover {
+            background: rgba(255, 255, 255, .6);
+            color: var(--blue)
+        }
+
+        .seg-ctl .fpill.on,
+        .seg-ctl .fpill.on:hover {
+            background: var(--white);
+            color: var(--blue);
+            box-shadow: 0 1px 4px rgba(59, 91, 219, .2)
+        }
+
+        .seg-n {
+            font-size: 10.5px;
             font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--t3);
-            margin-right: 4px;
+            color: var(--t3)
+        }
+
+        .seg-ctl .fpill.on .seg-n {
+            color: var(--blue)
+        }
+
+        /* The ladies tier switch borrows the Cat A pink so it reads as a sub-filter. */
+        .seg-ctl.sub {
+            background: #fff5fa;
+            border-color: #f8b4d9
+        }
+
+        .seg-ctl.sub .fpill:hover,
+        .seg-ctl.sub .fpill.on,
+        .seg-ctl.sub .fpill.on .seg-n {
+            color: #c2255c
+        }
+
+        .seg-ctl.sub .fpill.on {
+            box-shadow: 0 1px 4px rgba(194, 37, 92, .2)
+        }
+
+        /* Active filters as removable chips, with Reset at the end. */
+        .cat-status {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px 12px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .cat-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .cat-chips:empty {
+            display: none
+        }
+
+        .cat-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            max-width: 100%;
+            background: var(--blue-lt);
+            border: 1px solid var(--blue-md);
+            color: var(--blue);
+            border-radius: 20px;
+            padding: 3px 3px 3px 10px;
+            font-size: 11.5px;
+            font-weight: 600;
+        }
+
+        .cat-chip i {
+            font-style: normal;
+            color: var(--t3)
+        }
+
+        .cat-chip span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap
+        }
+
+        .cat-chip button {
+            width: 20px;
+            height: 20px;
             flex-shrink: 0;
+            border: 0;
+            border-radius: 50%;
+            background: transparent;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .cat-chip button svg {
+            width: 11px;
+            height: 11px
+        }
+
+        .cat-chip button:hover {
+            background: var(--blue);
+            color: #fff
         }
 
         .fpill {
@@ -1411,22 +1543,28 @@
         }
 
         .cat-controls {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-            margin-top: 9px;
-            padding-top: 9px;
-            border-top: 1px dashed var(--border);
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .cat-controls .ms {
+            height: 40px;
+            padding: 0 11px;
+            min-width: 0;
+        }
+
+        .cat-controls .ms-val {
+            flex: 1;
+            min-width: 0;
+            max-width: none;
+            color: var(--t1)
         }
 
         .cat-info {
-            margin-left: auto;
-            display: flex;
-            align-items: center;
-            gap: 8px;
             font-size: 12px;
             color: var(--t3);
+            white-space: nowrap;
         }
 
         .cat-info b {
@@ -1720,25 +1858,33 @@
         }
 
         .cat-reset {
+            margin-left: auto;
             display: inline-flex;
             align-items: center;
             gap: 5px;
-            background: var(--white);
-            border: 1.5px solid var(--border2);
-            border-radius: 10px;
-            padding: 6px 11px;
+            background: transparent;
+            border: 1.5px solid transparent;
+            border-radius: 8px;
+            padding: 5px 9px;
             font-size: 12px;
             font-weight: 700;
             color: var(--t2);
             cursor: pointer;
             font-family: 'Inter', sans-serif;
             transition: all .15s;
+            flex-shrink: 0;
         }
 
-        .cat-reset:hover {
-            border-color: var(--red);
+        .cat-reset:hover:not(:disabled) {
+            border-color: var(--red-md);
             color: var(--red);
             background: var(--red-lt)
+        }
+
+        /* Nothing to reset — keep it in place but quiet. */
+        .cat-reset:disabled {
+            opacity: .4;
+            cursor: default
         }
 
         .cat-reset svg {
@@ -1749,19 +1895,6 @@
             stroke-width: 2.4;
             stroke-linecap: round;
             stroke-linejoin: round;
-        }
-
-        .cat-grid-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            background: var(--blue-lt);
-            border: 1px solid var(--blue-md);
-            color: var(--blue);
-            padding: 3px 9px;
-            border-radius: 10px;
-            font-size: 11px;
-            font-weight: 700;
         }
 
         /* ── Catalog grid ── */
@@ -3101,94 +3234,67 @@
                 text-align: left
             }
 
+            /* Search on its own line, the two exports side by side under it. */
             .cat-search-row {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 9px
+                flex-wrap: wrap;
+                gap: 8px
+            }
+
+            .cat-search {
+                flex-basis: 100%
             }
 
             .pdf-export-btn,
             .zip-export-btn {
-                justify-content: center
+                flex: 1 1 0;
+                justify-content: center;
+                padding: 8px 10px
+            }
+
+            /* Gender switch spans the width in equal thirds; dropdowns go two to a row. */
+            .cat-seg-grp,
+            .seg-ctl {
+                width: 100%
+            }
+
+            .seg-ctl .fpill {
+                flex: 1;
+                justify-content: center;
+                padding: 0 6px
             }
 
             .cat-controls {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
                 gap: 7px
             }
 
-            /* Two dropdowns per row instead of one, so they don't push the grid offscreen. */
-            .ms {
-                flex: 1 1 calc(50% - 4px);
-                justify-content: space-between;
-                min-width: 0
-            }
-
-            .ms-val {
+            /* A half-width trigger is too narrow for its panel, so the panel runs
+               wider, anchored to the screen edge its column sits against. */
+            .cat-controls .ms-pop {
                 min-width: 0;
-                text-align: right
+                max-width: none;
+                width: min(280px, calc(100vw - 32px))
             }
 
-            /* Half-width triggers are too narrow for the panel, so it spans the row. */
-            .ms-pop {
+            .cat-controls .ms:nth-child(odd) .ms-pop {
                 left: 0;
-                right: 0;
-                min-width: 0;
-                max-width: none
+                right: auto
             }
 
-            /* Stock sits in the left column; its panel holds the min / max boxes,
-               so let it run wider than the half-width trigger. */
-            #ms-stock .ms-pop {
-                right: auto;
-                width: min(260px, calc(100vw - 32px))
+            .cat-controls .ms:nth-child(even) .ms-pop {
+                left: auto;
+                right: 0
             }
 
-            .cat-reset {
-                flex: 1 1 calc(50% - 4px);
-                justify-content: center
-            }
-
-            .cat-info {
-                margin-left: 0;
-                width: 100%;
-                justify-content: space-between
-            }
 
             .pdf-fields {
                 grid-template-columns: 1fr
             }
         }
 
-        /* Tablets: the dropdowns sit in even columns rather than a ragged wrap,
-           with the item count on its own line underneath. */
-        @media (min-width: 601px) and (max-width: 1100px) {
+        @media (min-width: 601px) and (max-width: 900px) {
             .cat-controls {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
-                gap: 8px;
-            }
-
-            .ms,
-            .cat-reset {
-                min-width: 0;
-                justify-content: space-between
-            }
-
-            .ms-val {
-                min-width: 0;
-                max-width: none;
-                flex: 1;
-                text-align: right
-            }
-
-            .cat-reset {
-                justify-content: center
-            }
-
-            .cat-info {
-                grid-column: 1 / -1;
-                margin-left: 0;
-                justify-content: space-between
+                grid-template-columns: repeat(3, minmax(0, 1fr))
             }
         }
     </style>
@@ -3385,85 +3491,79 @@
                 </button>
             </div>
 
-            <div class="filt-wrap">
-            <div class="filt-row">
-                <span class="filt-lbl">Gender:</span>
-                <span class="fpill on" data-gen="all">All Stock <span id="cf-gen-all">0</span></span>
-                <span class="fpill" data-gen="Male">Men <span id="cf-gen-male">0</span></span>
-                <span class="fpill" data-gen="Ladies">Ladies <span id="cf-gen-ladies">0</span></span>
+            <div class="cat-filters">
+            <div class="cat-top">
+            <div class="cat-seg-grp">
+                <div class="seg-ctl" role="group" aria-label="Gender">
+                    <span class="fpill on" data-gen="all">All <span class="seg-n" id="cf-gen-all">0</span></span>
+                    <span class="fpill" data-gen="Male">Men <span class="seg-n" id="cf-gen-male">0</span></span>
+                    <span class="fpill" data-gen="Ladies">Ladies <span class="seg-n" id="cf-gen-ladies">0</span></span>
+                </div>
+                <div class="seg-ctl sub" id="ladiesSubFilt" style="display:none" role="group" aria-label="Ladies category">
+                    <span class="fpill on" data-sub="all">A + B</span>
+                    <span class="fpill" data-sub="A">Cat A <span class="seg-n" id="cf-sub-a">0</span></span>
+                    <span class="fpill" data-sub="B">Cat B <span class="seg-n" id="cf-sub-b">0</span></span>
+                </div>
             </div>
-
-            <div class="filt-row" id="ladiesSubFilt" style="display:none">
-                <span class="filt-lbl">Ladies Cat:</span>
-                <span class="fpill on" data-sub="all">Both A &amp; B</span>
-                <span class="fpill" data-sub="A">Category A <span id="cf-sub-a">0</span></span>
-                <span class="fpill" data-sub="B">Category B <span id="cf-sub-b">0</span></span>
-            </div>
+            <div class="cat-info">Showing <b id="catShowingTxt">0</b> of <b id="catTotalTxt">0</b> items</div>
             </div>
 
             <div class="cat-controls">
                 <div class="ms" id="ms-stock" data-ms="stock">
-                    <span class="ms-lbl">Stock:</span>
+                    <span class="ms-lbl">Stock</span>
                     <span class="ms-val">All</span>
                     <svg class="ms-chev" viewBox="0 0 24 24">
                         <polyline points="6 9 12 15 18 9" />
                     </svg>
                 </div>
                 <div class="ms" id="ms-size" data-ms="size">
-                    <span class="ms-lbl">Size:</span>
+                    <span class="ms-lbl">Size</span>
                     <span class="ms-val">All Sizes</span>
                     <svg class="ms-chev" viewBox="0 0 24 24">
                         <polyline points="6 9 12 15 18 9" />
                     </svg>
                 </div>
                 <div class="ms" id="ms-type" data-ms="type">
-                    <span class="ms-lbl">Type:</span>
+                    <span class="ms-lbl">Type</span>
                     <span class="ms-val">All Types</span>
                     <svg class="ms-chev" viewBox="0 0 24 24">
                         <polyline points="6 9 12 15 18 9" />
                     </svg>
                 </div>
                 <div class="ms" id="ms-img" data-ms="img">
-                    <span class="ms-lbl">Image:</span>
+                    <span class="ms-lbl">Image</span>
                     <span class="ms-val">Normal</span>
                     <svg class="ms-chev" viewBox="0 0 24 24">
                         <polyline points="6 9 12 15 18 9" />
                     </svg>
                 </div>
                 <div class="ms" id="ms-status" data-ms="status">
-                    <span class="ms-lbl">Status:</span>
+                    <span class="ms-lbl">Status</span>
                     <span class="ms-val">All</span>
                     <svg class="ms-chev" viewBox="0 0 24 24">
                         <polyline points="6 9 12 15 18 9" />
                     </svg>
                 </div>
                 <div class="ms" id="ms-sort" data-ms="sort">
-                    <span class="ms-lbl">Sort:</span>
+                    <span class="ms-lbl">Sort</span>
                     <span class="ms-val">Default</span>
                     <svg class="ms-chev" viewBox="0 0 24 24">
                         <polyline points="6 9 12 15 18 9" />
                     </svg>
                 </div>
+            </div>
+            </div>
+
+            <!-- Only shown while something is narrowing the grid. -->
+            <div class="cat-status" id="catStatus" style="display:none">
+                <div class="cat-chips" id="catChips"></div>
                 <button class="cat-reset" id="catResetBtn" type="button">
                     <svg viewBox="0 0 24 24">
                         <polyline points="1 4 1 10 7 10" />
                         <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                     </svg>
-                    Reset Filters
+                    Reset all
                 </button>
-                <div class="cat-info">
-                    <span>Showing <b id="catShowingTxt">0</b> of <b id="catTotalTxt">0</b> items</span>
-                    <span class="cat-grid-badge">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
-                            style="width:11px;height:11px">
-                            <rect x="3" y="3" width="7" height="7" />
-                            <rect x="14" y="3" width="7" height="7" />
-                            <rect x="14" y="14" width="7" height="7" />
-                            <rect x="3" y="14" width="7" height="7" />
-                        </svg>
-                        Catalog Grid
-                    </span>
-                </div>
             </div>
         </div>
 
@@ -4440,11 +4540,11 @@
             const cMale = products.filter(r => genderKind(r[COL.group]) === 'Male').length;
             const cA = products.filter(r => String(r[COL.group] || '').trim().toUpperCase() === 'A').length;
             const cB = products.filter(r => String(r[COL.group] || '').trim().toUpperCase() === 'B').length;
-            document.getElementById('cf-gen-all').textContent = `(${total})`;
-            document.getElementById('cf-gen-male').textContent = `(${cMale})`;
-            document.getElementById('cf-gen-ladies').textContent = `(${cA + cB})`;
-            document.getElementById('cf-sub-a').textContent = `(${cA})`;
-            document.getElementById('cf-sub-b').textContent = `(${cB})`;
+            document.getElementById('cf-gen-all').textContent = total;
+            document.getElementById('cf-gen-male').textContent = cMale;
+            document.getElementById('cf-gen-ladies').textContent = cA + cB;
+            document.getElementById('cf-sub-a').textContent = cA;
+            document.getElementById('cf-sub-b').textContent = cB;
 
             populateStockFilter();
             populateSizeFilters();
@@ -4975,7 +5075,44 @@
             catFiltered = applySort(applyFilters(products));
             catPage = 0;                 // a changed filter always starts at page 1
             paintCatPage();
+            paintCatChips();
         }
+
+        /* One removable chip per filter that is narrowing the grid (gender has
+           its own always-visible switch, so it doesn't need one). The row hides
+           when nothing is active. */
+        const CHIP_X = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        function paintCatChips() {
+            const chips = [];
+            ['stock', 'size', 'type', 'img', 'status', 'sort'].forEach(k => {
+                if (!msIsDefault(k)) chips.push({ k, lbl: MS_DEFS[k].label, txt: msLabel(k).txt });
+            });
+            if (catFilters.search) chips.push({ k: 'search', lbl: 'Search', txt: `"${catFilters.search}"` });
+            document.getElementById('catChips').innerHTML = chips.map(c =>
+                `<span class="cat-chip"><span><i>${c.lbl}:</i> ${escHtml(c.txt)}</span><button type="button" data-chip="${c.k}" aria-label="Remove ${c.lbl} filter" title="Remove">${CHIP_X}</button></span>`).join('');
+            const ladiesTier = catFilters.gender === 'Ladies' && catFilters.sub !== 'all';
+            const any = chips.length || catFilters.gender !== 'all' || ladiesTier;
+            document.getElementById('catStatus').style.display = any ? 'flex' : 'none';
+        }
+
+        document.getElementById('catChips').addEventListener('click', e => {
+            const b = e.target.closest('[data-chip]');
+            if (!b) return;
+            const k = b.dataset.chip;
+            if (k === 'search') {
+                catFilters.search = '';
+                document.getElementById('catSearch').value = '';
+            } else {
+                if (catFilters[k] instanceof Set) catFilters[k].clear();
+                else catFilters[k] = CAT_DEFAULTS[k];
+                if (k === 'stock') {
+                    catFilters.stkMin = catFilters.stkMax = null;
+                    populateStockFilter();
+                }
+                msRender(k);
+            }
+            renderCatalog();
+        });
 
         function goCatPage(n) {
             const last = pageCount() - 1;
@@ -5025,8 +5162,8 @@
         const MS_DEFS = {
             // `range` adds the custom min/max panel under the preset list.
             stock: { mode: 'single', label: 'Stock', search: false, range: true },
-            size: { mode: 'multi', label: 'Size', allLabel: 'All Sizes', search: true, noun: 'sizes' },
-            type: { mode: 'multi', label: 'Type', allLabel: 'All Types', search: true, noun: 'types' },
+            size: { mode: 'multi', label: 'Size', allLabel: 'All sizes', search: true, noun: 'sizes' },
+            type: { mode: 'multi', label: 'Type', allLabel: 'All types', search: true, noun: 'types' },
             img: { mode: 'single', label: 'Image', search: false },
             status: { mode: 'multi', label: 'Status', allLabel: 'All', search: false, noun: 'statuses' },
             sort: { mode: 'single', label: 'Sort', search: false }
@@ -5041,10 +5178,11 @@
             sort: { opts: [], q: '' }
         };
 
+        // [value, text in the list, short text for the narrow trigger]
         const MS_SORT_OPTS = [
-            ['default', 'Default'], ['rate-asc', 'Rate: Low → High'], ['rate-desc', 'Rate: High → Low'],
-            ['stock-desc', 'Stock: High → Low'], ['stock-asc', 'Stock: Low → High'],
-            ['key-asc', 'Key A→Z'], ['key-desc', 'Key Z→A'], ['recent', 'Recently Added']
+            ['default', 'Default', 'Default'], ['rate-asc', 'Rate: Low → High', 'Rate ↑'], ['rate-desc', 'Rate: High → Low', 'Rate ↓'],
+            ['stock-desc', 'Stock: High → Low', 'Stock ↓'], ['stock-asc', 'Stock: Low → High', 'Stock ↑'],
+            ['key-asc', 'Key A→Z', 'Key A→Z'], ['key-desc', 'Key Z→A', 'Key Z→A'], ['recent', 'Recently Added', 'Newest']
         ];
 
         /* Selected values for a multi control, or null when it isn't filtering
@@ -5074,22 +5212,22 @@
         }
 
         function msLabel(key) {
+            /* Triggers show only the choice. The per-option counts live in the
+               panel; on the trigger they were counts over the whole sheet, which
+               disagreed with "Showing N items" once other filters applied. */
             const def = MS_DEFS[key], st = msState[key];
-            if (def.range && catFilters[key] === 'range') return { txt: `${stkRangeTxt()} (${stkRangeCount()})`, badge: '' };
+            if (def.range && catFilters[key] === 'range') return { txt: stkRangeTxt(), badge: '' };
             if (def.mode === 'single') {
                 const o = st.opts.find(o => o.v === catFilters[key]);
-                if (!o) return { txt: '—', badge: '' };
-                return { txt: o.cnt === null ? o.txt : `${o.txt} (${o.cnt})`, badge: '' };
+                return { txt: o ? (o.short || o.txt) : '—', badge: '' };
             }
             const sel = catFilters[key];
-            const total = st.opts.reduce((n, o) => n + (o.cnt || 0), 0);
-            if (msActive(key) === null) return { txt: `${def.allLabel} (${total})`, badge: '' };
+            if (msActive(key) === null) return { txt: def.allLabel, badge: '' };
             if (sel.size === 1) {
                 const o = st.opts.find(o => o.v === [...sel][0]);
-                return { txt: o ? `${o.txt} (${o.cnt})` : '—', badge: '' };
+                return { txt: o ? o.txt : '—', badge: '' };
             }
-            const cnt = st.opts.reduce((n, o) => n + (sel.has(o.v) ? (o.cnt || 0) : 0), 0);
-            return { txt: `${sel.size} ${def.noun} (${cnt})`, badge: String(sel.size) };
+            return { txt: `${sel.size} ${def.noun}`, badge: '' };
         }
 
         function msRender(key) {
@@ -5385,7 +5523,7 @@
         }
 
         function populateSortFilter() {
-            msSetOptions('sort', MS_SORT_OPTS.map(([v, t]) => ({ v, txt: t, cnt: null })));
+            msSetOptions('sort', MS_SORT_OPTS.map(([v, t, short]) => ({ v, txt: t, short, cnt: null })));
         }
 
         /* ═════════ Reset ═════════ */
