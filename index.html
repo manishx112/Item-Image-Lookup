@@ -5,6 +5,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
     <meta name="theme-color" content="#f0f3ff" />
+    <script>
+        /* Set the theme before first paint so a dark-mode user never sees a white
+           flash. A saved choice wins; otherwise follow the device setting. */
+        (function () {
+            var t;
+            try { t = localStorage.getItem('iil_theme'); } catch (e) { }
+            if (t !== 'dark' && t !== 'light') {
+                t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
     <title>Item Image Lookup</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -3303,6 +3315,285 @@
                 grid-template-columns: repeat(4, minmax(0, 1fr))
             }
         }
+
+        /* ═══ Theme toggle (header, top right) ═══ */
+        .theme-btn {
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            border: 1.5px solid var(--border2);
+            background: var(--white);
+            color: var(--t2);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all .15s;
+        }
+
+        .theme-btn:hover {
+            border-color: var(--blue);
+            color: var(--blue)
+        }
+
+        .theme-btn svg {
+            width: 16px;
+            height: 16px
+        }
+
+        .theme-btn .i-sun,
+        :root[data-theme="dark"] .theme-btn .i-moon {
+            display: none
+        }
+
+        :root[data-theme="dark"] .theme-btn .i-sun {
+            display: block
+        }
+
+        @media (max-width: 600px) {
+
+            /* Keep the toggle on the first header line, top right; the catalog
+               tools, refresh and status pill wrap to the line below. */
+            .htools,
+            .hrefresh,
+            .hpill {
+                order: 2
+            }
+
+            /* Zero-height line break between the two header lines. */
+            .hdr::after {
+                content: '';
+                order: 1;
+                flex-basis: 100%;
+                height: 0
+            }
+
+            .theme-btn {
+                width: 30px;
+                height: 30px
+            }
+        }
+
+        /* ═══ Running light around a border ═══
+           Add .glow-border to any element with a border-radius. A short bright
+           head with a fading tail travels the outline; --glow-speed and
+           --glow-delay tune it per element. */
+        @property --run {
+            syntax: '<angle>';
+            inherits: false;
+            initial-value: 0deg;
+        }
+
+        :root {
+            --flow-glow: #0969DA
+        }
+
+        :root[data-theme="dark"] {
+            --flow-glow: #4FC3F7
+        }
+
+        /* Must not clip: overflow: hidden would cut the ring off. */
+        .glow-border {
+            position: relative;
+            overflow: visible;
+        }
+
+        .glow-border::before {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: inherit;
+            padding: 1.5px;
+            /* ~65° of light: transparent, then a tail fading up to a bright head. */
+            background: conic-gradient(from var(--run),
+                    transparent 0deg 295deg,
+                    color-mix(in srgb, var(--flow-glow) 20%, transparent) 320deg,
+                    var(--flow-glow) 357deg,
+                    transparent 360deg);
+            /* Show only the padding ring, not the middle. */
+            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+            mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+            pointer-events: none;
+            z-index: 1;
+            animation: glow-run var(--glow-speed, 7s) linear infinite;
+            animation-delay: var(--glow-delay, 0s);
+        }
+
+        @keyframes glow-run {
+            from {
+                --run: 0deg
+            }
+
+            to {
+                --run: 360deg
+            }
+        }
+
+        /* Catalog cards lose overflow: hidden for the light, so the photo rounds
+           its own top corners to stay inside the card. */
+        .cat-card.glow-border .cat-img {
+            border-radius: calc(var(--rsm) - 2px) calc(var(--rsm) - 2px) 0 0
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .glow-border::before {
+                animation: none;
+                display: none
+            }
+        }
+
+        @media print {
+            .glow-border::before {
+                display: none
+            }
+        }
+
+        /* ═══ Dark theme ═══
+           Most colour runs through the variables above; the rest are the few
+           surfaces and tints that were written as fixed light colours. */
+        :root[data-theme="dark"] {
+            color-scheme: dark;
+            --blue: #6d8bff;
+            --blue-lt: #1b2346;
+            --blue-md: #34437c;
+            --green: #34d3a2;
+            --green-lt: #10302a;
+            --green-md: #1f6b56;
+            --amber: #ffb547;
+            --amber-lt: #2f2414;
+            --amber-md: #6b4f1f;
+            --red: #ff8080;
+            --red-lt: #351c23;
+            --red-md: #73303c;
+            --white: #161b31;
+            --border: #262e52;
+            --border2: #343e6b;
+            --t1: #e8ebf8;
+            --t2: #b5bcde;
+            --t3: #7f88b5;
+            --sh: 0 2px 10px rgba(0, 0, 0, .35);
+            --sh2: 0 4px 20px rgba(0, 0, 0, .45);
+        }
+
+        :root[data-theme="dark"] body {
+            background: #0c1022;
+            color: var(--t1)
+        }
+
+        :root[data-theme="dark"] body::before {
+            background-image: radial-gradient(#6d8bff14 1px, transparent 1px)
+        }
+
+        :root[data-theme="dark"] .hdr {
+            background: rgba(12, 16, 34, .9)
+        }
+
+        :root[data-theme="dark"] .seg {
+            background: #0f1430
+        }
+
+        :root[data-theme="dark"] .tab:hover:not(.on),
+        :root[data-theme="dark"] .seg-ctl .fpill:hover {
+            background: rgba(255, 255, 255, .06)
+        }
+
+        :root[data-theme="dark"] mark {
+            background: #5a4a12;
+            color: #ffe8a3
+        }
+
+        :root[data-theme="dark"] .sk {
+            background: #222a4a
+        }
+
+        :root[data-theme="dark"] .ddhd,
+        :root[data-theme="dark"] .imgcard-hd,
+        :root[data-theme="dark"] .ms-foot,
+        :root[data-theme="dark"] .ms-range,
+        :root[data-theme="dark"] .pdf-field-row {
+            background: #12172c
+        }
+
+        :root[data-theme="dark"] .cat-search:focus-within {
+            background: var(--blue-lt)
+        }
+
+        :root[data-theme="dark"] .cat-type {
+            background: #1f2645
+        }
+
+        :root[data-theme="dark"] .seg-ctl.sub {
+            background: #2a1626;
+            border-color: #6b2c4c
+        }
+
+        :root[data-theme="dark"] .seg-ctl.sub .fpill:hover,
+        :root[data-theme="dark"] .seg-ctl.sub .fpill.on,
+        :root[data-theme="dark"] .seg-ctl.sub .fpill.on .seg-n {
+            color: #ff8fc0
+        }
+
+        /* Tier badges: the light tints become dark ones, text brightened to read. */
+        :root[data-theme="dark"] .cat-gen-badge {
+            background: rgba(22, 27, 49, .92)
+        }
+
+        :root[data-theme="dark"] .cat-gen-badge.male,
+        :root[data-theme="dark"] .dcat.male {
+            background: #1b2346;
+            color: #9db2ff;
+            border-color: #34437c
+        }
+
+        :root[data-theme="dark"] .cat-gen-badge.a,
+        :root[data-theme="dark"] .dcat.a {
+            background: #2a1626;
+            color: #ff8fc0;
+            border-color: #6b2c4c
+        }
+
+        :root[data-theme="dark"] .cat-gen-badge.b,
+        :root[data-theme="dark"] .dcat.b {
+            background: #2f2414;
+            color: #ffb547;
+            border-color: #6b4f1f
+        }
+
+        :root[data-theme="dark"] .icval.pink {
+            color: #ff8fc0
+        }
+
+        :root[data-theme="dark"] .icval.amber {
+            color: #ffb547
+        }
+
+        :root[data-theme="dark"] .stock-card.in .stock-ico svg {
+            stroke: #0c1022
+        }
+
+        :root[data-theme="dark"] .stock-card.in .stock-tag {
+            color: var(--green)
+        }
+
+        :root[data-theme="dark"] .freshbar.fresh {
+            color: var(--green)
+        }
+
+        :root[data-theme="dark"] .freshbar.aging,
+        :root[data-theme="dark"] .cat-bad-note,
+        :root[data-theme="dark"] .cat-bad-copy {
+            color: var(--amber)
+        }
+
+        :root[data-theme="dark"] .fresh-btn {
+            background: rgba(255, 255, 255, .06)
+        }
+
+        :root[data-theme="dark"] .fresh-btn:hover {
+            background: var(--white)
+        }
     </style>
 </head>
 
@@ -3370,6 +3661,15 @@
             <span class="hdot"></span>
             <span id="pillTxt">Loading…</span>
         </div>
+        <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch to dark mode" title="Dark mode">
+            <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+            <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+            </svg>
+        </button>
     </header>
 
     <!-- Data age, right under the header — the footer line was too easy to miss,
@@ -3401,7 +3701,7 @@
                 seconds.</p>
         </div>
 
-        <div class="sc" id="sCard">
+        <div class="sc glow-border" id="sCard">
             <div class="si">
                 <span class="sico">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
@@ -3467,7 +3767,7 @@
 
     <!-- ═══════ STOCK VIEW (Catalog) ═══════ -->
     <main class="wrap wide" id="stockView" style="display:none">
-        <div class="cat-toolbar">
+        <div class="cat-toolbar glow-border" style="--glow-speed: 12s; --glow-delay: -4s">
             <div class="cat-search-row">
                 <div class="cat-search">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
@@ -4655,7 +4955,9 @@
                 ? `<img src="${imgSrc}" loading="lazy" decoding="async" data-fid="${fid || ''}" data-key="${String(k).replace(/"/g, '&quot;')}" onerror="catImgFail(this)">`
                 : `<div class="cat-img-ph">No image link</div>`;
 
-            return `<div class="cat-card${isSel ? ' selected' : ''}" data-uid="${uid}">
+            // Spread the lights around the loop so neighbouring cards don't run in lockstep.
+            const glowDelay = -((uid * 1.37) % 7).toFixed(2);
+            return `<div class="cat-card glow-border${isSel ? ' selected' : ''}" data-uid="${uid}" style="--glow-delay: ${glowDelay}s">
           <div class="cat-img">
             ${(!hideGender && gBadgeTxt) ? `<span class="cat-gen-badge ${gBadgeCls}">${gBadgeTxt}</span>` : ''}
             ${showingGen ? `<span class="cat-ai-badge">AI</span>` : ''}
@@ -5642,6 +5944,36 @@
                 renderCatalog();
             }, 180);
         });
+
+        /* ═════════ Theme toggle ═════════
+           The <head> script already set data-theme before paint; this keeps the
+           button, the browser bar colour and the saved choice in step. */
+        const THEME_KEY = 'iil_theme';
+        function paintThemeUi() {
+            const dark = document.documentElement.dataset.theme === 'dark';
+            const btn = document.getElementById('themeBtn');
+            btn.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+            btn.title = dark ? 'Light mode' : 'Dark mode';
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', dark ? '#0c1022' : '#f0f3ff');
+        }
+        document.getElementById('themeBtn').addEventListener('click', () => {
+            const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+            document.documentElement.dataset.theme = next;
+            try { localStorage.setItem(THEME_KEY, next); } catch (e) { }
+            paintThemeUi();
+        });
+        // Until the user picks one, follow the device as it switches day/night.
+        if (window.matchMedia) {
+            matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                let saved = null;
+                try { saved = localStorage.getItem(THEME_KEY); } catch (err) { }
+                if (saved) return;
+                document.documentElement.dataset.theme = e.matches ? 'dark' : 'light';
+                paintThemeUi();
+            });
+        }
+        paintThemeUi();
 
         document.getElementById('clearSelBtn').addEventListener('click', () => {
             // Just drop the highlight — a full re-render would reset paging and
