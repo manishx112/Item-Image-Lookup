@@ -3399,7 +3399,8 @@
             overflow: visible;
         }
 
-        .glow-border::before {
+        /* Dark mode only — on the light theme the neon reads as noise. */
+        :root[data-theme="dark"] .glow-border::before {
             content: '';
             position: absolute;
             inset: -1px;
@@ -3701,7 +3702,7 @@
                 seconds.</p>
         </div>
 
-        <div class="sc glow-border" id="sCard">
+        <div class="sc" id="sCard">
             <div class="si">
                 <span class="sico">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
