@@ -1544,13 +1544,14 @@
 
         .cat-controls {
             display: grid;
-            grid-template-columns: repeat(6, minmax(0, 1fr));
-            gap: 8px;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 7px;
         }
 
         .cat-controls .ms {
             height: 40px;
-            padding: 0 11px;
+            padding: 0 10px;
+            gap: 5px;
             min-width: 0;
         }
 
@@ -3286,6 +3287,11 @@
                 right: 0
             }
 
+            /* Seven dropdowns in two columns leave one over — let it span the row. */
+            .cat-controls .ms:last-child:nth-child(odd) {
+                grid-column: 1 / -1
+            }
+
 
             .pdf-fields {
                 grid-template-columns: 1fr
@@ -3294,7 +3300,7 @@
 
         @media (min-width: 601px) and (max-width: 900px) {
             .cat-controls {
-                grid-template-columns: repeat(3, minmax(0, 1fr))
+                grid-template-columns: repeat(4, minmax(0, 1fr))
             }
         }
     </style>
@@ -3511,6 +3517,13 @@
             <div class="cat-controls">
                 <div class="ms" id="ms-stock" data-ms="stock">
                     <span class="ms-lbl">Stock</span>
+                    <span class="ms-val">All</span>
+                    <svg class="ms-chev" viewBox="0 0 24 24">
+                        <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                </div>
+                <div class="ms" id="ms-price" data-ms="price">
+                    <span class="ms-lbl">Price</span>
                     <span class="ms-val">All</span>
                     <svg class="ms-chev" viewBox="0 0 24 24">
                         <polyline points="6 9 12 15 18 9" />
@@ -3819,14 +3832,15 @@
         let currentTab = 'home';
         // img defaults to 'normal' — today every row has an uploaded photo, so this
         // shows all 300 until Generated Image cells start being filled in.
-        const CAT_DEFAULTS = { stock: 'all', gender: 'all', sub: 'all', img: 'normal', sort: 'default' };
+        const CAT_DEFAULTS = { stock: 'all', price: 'all', gender: 'all', sub: 'all', img: 'normal', sort: 'default' };
         /* size / type / status hold a Set of ticked values from their multi-select
            dropdowns; an empty Set is the reset state and filters nothing. */
         let catFilters = {
-            stock: CAT_DEFAULTS.stock, gender: CAT_DEFAULTS.gender, sub: CAT_DEFAULTS.sub,
+            stock: CAT_DEFAULTS.stock, price: CAT_DEFAULTS.price, gender: CAT_DEFAULTS.gender, sub: CAT_DEFAULTS.sub,
             size: new Set(), type: new Set(), status: new Set(),
             img: CAT_DEFAULTS.img, sort: CAT_DEFAULTS.sort, search: '',
-            stkMin: null, stkMax: null      // bounds for the Stock dropdown's custom range; null = open
+            // Custom-range bounds for the Stock and Price dropdowns; null = open.
+            stkMin: null, stkMax: null, priceMin: null, priceMax: null
         };
         // Filters land on their defaults for the first data paint only — a later
         // background refresh must not wipe what the user has picked.
@@ -4434,13 +4448,31 @@
             if (stk === '' || stk === null || stk === undefined) return -1;
             return Number(stk);
         }
-        /* Custom stock range. Either bound may be left blank; a reversed pair is
-           read as the range it obviously means. Rows with no stock figure never
-           match — "N/A" has its own pill. */
-        function inStkRange(n) {
-            if (n < 0) return false;
-            let lo = catFilters.stkMin, hi = catFilters.stkMax;
+        // A row's rate as a number, or -1 when the cell is blank or not a number.
+        function rateNum(r) {
+            const v = r[COL.rate];
+            if (v === '' || v === null || v === undefined) return -1;
+            const n = Number(v);
+            return Number.isFinite(n) ? n : -1;
+        }
+
+        /* Dropdowns that offer a custom min / max range. `num` reads the row's
+           figure (negative = none, which never matches); `fmt` prints a bound. */
+        const RANGES = {
+            stock: { min: 'stkMin', max: 'stkMax', noun: 'stock', ph: ['Min', 'Max'], num: r => stockNum(r[COL.stock]), fmt: n => `${n}` },
+            price: { min: 'priceMin', max: 'priceMax', noun: 'price', ph: ['Min ₹', 'Max ₹'], num: rateNum, fmt: n => `₹${n}` }
+        };
+
+        // Either bound may be blank; a reversed pair is read as the range it obviously means.
+        function rangeBounds(key) {
+            const R = RANGES[key];
+            let lo = catFilters[R.min], hi = catFilters[R.max];
             if (lo !== null && hi !== null && lo > hi) [lo, hi] = [hi, lo];
+            return [lo, hi];
+        }
+        function inRange(key, n) {
+            if (n < 0) return false;
+            const [lo, hi] = rangeBounds(key);
             return (lo === null || n >= lo) && (hi === null || n <= hi);
         }
         function hasText(v) {
@@ -4508,7 +4540,16 @@
                 if (catFilters.stock === 'ge50' && !(sNum >= 50)) return false;
                 if (catFilters.stock === 'out' && sState !== 'out') return false;
                 if (catFilters.stock === 'na' && sState !== 'na') return false;
-                if (catFilters.stock === 'range' && !inStkRange(sNum)) return false;
+                if (catFilters.stock === 'range' && !inRange('stock', sNum)) return false;
+                // Price: a ₹100 band or the custom range
+                if (catFilters.price !== 'all') {
+                    const p = rateNum(r);
+                    if (catFilters.price === 'range') { if (!inRange('price', p)) return false; }
+                    else {
+                        const b = priceBandOf(catFilters.price);
+                        if (b !== null && !(p >= b && p < b + PRICE_BAND)) return false;
+                    }
+                }
                 // Status select (multi-select)
                 if (selStatus && !selStatus.has(sState)) return false;
                 // Search
@@ -4547,6 +4588,7 @@
             document.getElementById('cf-sub-b').textContent = cB;
 
             populateStockFilter();
+            populatePriceFilter();
             populateSizeFilters();
             populateTypeFilters();
             populateImgFilter();
@@ -5084,7 +5126,7 @@
         const CHIP_X = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
         function paintCatChips() {
             const chips = [];
-            ['stock', 'size', 'type', 'img', 'status', 'sort'].forEach(k => {
+            ['stock', 'price', 'size', 'type', 'img', 'status', 'sort'].forEach(k => {
                 if (!msIsDefault(k)) chips.push({ k, lbl: MS_DEFS[k].label, txt: msLabel(k).txt });
             });
             if (catFilters.search) chips.push({ k: 'search', lbl: 'Search', txt: `"${catFilters.search}"` });
@@ -5105,9 +5147,9 @@
             } else {
                 if (catFilters[k] instanceof Set) catFilters[k].clear();
                 else catFilters[k] = CAT_DEFAULTS[k];
-                if (k === 'stock') {
-                    catFilters.stkMin = catFilters.stkMax = null;
-                    populateStockFilter();
+                if (RANGES[k]) {
+                    catFilters[RANGES[k].min] = catFilters[RANGES[k].max] = null;
+                    populateRangeFilter(k);
                 }
                 msRender(k);
             }
@@ -5162,6 +5204,7 @@
         const MS_DEFS = {
             // `range` adds the custom min/max panel under the preset list.
             stock: { mode: 'single', label: 'Stock', search: false, range: true },
+            price: { mode: 'single', label: 'Price', search: false, range: true },
             size: { mode: 'multi', label: 'Size', allLabel: 'All sizes', search: true, noun: 'sizes' },
             type: { mode: 'multi', label: 'Type', allLabel: 'All types', search: true, noun: 'types' },
             img: { mode: 'single', label: 'Image', search: false },
@@ -5171,6 +5214,7 @@
         // opts: [{ v, txt, cnt }]. cnt is null when a count makes no sense (Sort).
         const msState = {
             stock: { opts: [], q: '' },
+            price: { opts: [], q: '' },
             size: { opts: [], q: '' },
             type: { opts: [], q: '' },
             img: { opts: [], q: '' },
@@ -5216,7 +5260,7 @@
                panel; on the trigger they were counts over the whole sheet, which
                disagreed with "Showing N items" once other filters applied. */
             const def = MS_DEFS[key], st = msState[key];
-            if (def.range && catFilters[key] === 'range') return { txt: stkRangeTxt(), badge: '' };
+            if (def.range && catFilters[key] === 'range') return { txt: rangeTxt(key), badge: '' };
             if (def.mode === 'single') {
                 const o = st.opts.find(o => o.v === catFilters[key]);
                 return { txt: o ? (o.short || o.txt) : '—', badge: '' };
@@ -5283,7 +5327,7 @@
                 if (sum) sum.textContent = msSummary(key);
                 // The range boxes stay put so typing isn't interrupted.
                 const rc = pop.querySelector('.ms-range-cnt');
-                if (rc) rc.innerHTML = stkRangeCntHtml();
+                if (rc) rc.innerHTML = rangeCntHtml(key);
                 return;
             }
 
@@ -5291,36 +5335,37 @@
                 ? `<div class="ms-search"><input type="text" placeholder="Search ${def.label.toLowerCase()}…" value="${escHtml(st.q)}"></div>` : '';
             const footHtml = def.mode === 'multi'
                 ? `<div class="ms-foot"><span class="ms-sum">${msSummary(key)}</span><button class="ms-clr" type="button">Clear</button></div>` : '';
+            const R = RANGES[key];
             const rangeHtml = def.range ? `<div class="ms-range">
             <div class="ms-range-hd">Custom range</div>
             <div class="ms-range-row">
-              <input type="number" class="ms-rmin" min="0" step="1" inputmode="numeric" placeholder="Min" aria-label="Minimum stock" value="${catFilters.stkMin ?? ''}">
+              <input type="number" class="ms-rmin" min="0" step="1" inputmode="numeric" placeholder="${R.ph[0]}" aria-label="Minimum ${R.noun}" value="${catFilters[R.min] ?? ''}">
               <span>to</span>
-              <input type="number" class="ms-rmax" min="0" step="1" inputmode="numeric" placeholder="Max" aria-label="Maximum stock" value="${catFilters.stkMax ?? ''}">
+              <input type="number" class="ms-rmax" min="0" step="1" inputmode="numeric" placeholder="${R.ph[1]}" aria-label="Maximum ${R.noun}" value="${catFilters[R.max] ?? ''}">
             </div>
-            <div class="ms-range-foot"><span class="ms-range-cnt">${stkRangeCntHtml()}</span><button class="ms-range-go" type="button">Apply</button></div>
+            <div class="ms-range-foot"><span class="ms-range-cnt">${rangeCntHtml(key)}</span><button class="ms-range-go" type="button">Apply</button></div>
           </div>` : '';
             pop.innerHTML = `${searchHtml}<div class="ms-list">${rows}</div>${footHtml}${rangeHtml}`;
         }
 
-        /* ── Stock custom range. Either bound may be blank; a reversed pair is
-           read as the range it obviously means. */
-        function stkRangeTxt() {
-            let lo = catFilters.stkMin, hi = catFilters.stkMax;
-            if (lo !== null && hi !== null && lo > hi) [lo, hi] = [hi, lo];
-            if (lo !== null && hi !== null) return lo === hi ? `${lo}` : `${lo}–${hi}`;
-            if (lo !== null) return `≥ ${lo}`;
-            if (hi !== null) return `≤ ${hi}`;
-            return 'Any number';
+        /* ── Custom min / max range (Stock, Price) ── */
+        function rangeTxt(key) {
+            const R = RANGES[key];
+            const [lo, hi] = rangeBounds(key);
+            if (lo !== null && hi !== null) return lo === hi ? R.fmt(lo) : `${R.fmt(lo)}–${hi}`;
+            if (lo !== null) return `≥ ${R.fmt(lo)}`;
+            if (hi !== null) return `≤ ${R.fmt(hi)}`;
+            return 'Any';
         }
-        function stkRangeCount() {
-            return products.filter(r => inStkRange(stockNum(r[COL.stock]))).length;
+        function rangeCount(key) {
+            const R = RANGES[key];
+            return products.filter(r => inRange(key, R.num(r))).length;
         }
-        function stkRangeCntHtml() {
-            const n = stkRangeCount();
+        function rangeCntHtml(key) {
+            const n = rangeCount(key);
             return `<b>${n}</b> item${n === 1 ? '' : 's'} match`;
         }
-        function readStkBound(v) {
+        function readRangeBound(v) {
             v = String(v).trim();
             if (v === '') return null;
             const n = Math.floor(Number(v));
@@ -5389,7 +5434,7 @@
                     msRender(key); renderCatalog();
                     return;
                 }
-                if (e.target.closest('.ms-range-go')) { applyStkRange(); return; }
+                if (e.target.closest('.ms-range-go')) { applyRange(key); return; }
                 if (!opt) return;
 
                 if (def.mode === 'single') {
@@ -5429,28 +5474,29 @@
             }
 
             if (def.range) {
+                const R = RANGES[key];
                 root.addEventListener('input', e => {
                     if (!e.target.matches('.ms-range input')) return;
-                    catFilters.stkMin = readStkBound(root.querySelector('.ms-rmin').value);
-                    catFilters.stkMax = readStkBound(root.querySelector('.ms-rmax').value);
+                    catFilters[R.min] = readRangeBound(root.querySelector('.ms-rmin').value);
+                    catFilters[R.max] = readRangeBound(root.querySelector('.ms-rmax').value);
                     catFilters[key] = 'range';      // typing a number is choosing the range
-                    populateStockFilter();
+                    populateRangeFilter(key);
                     msRender(key);
                     // Wait for a pause in typing so "150" doesn't repaint at 1 and 15.
-                    clearTimeout(stkRangeTmr);
-                    stkRangeTmr = setTimeout(renderCatalog, 300);
+                    clearTimeout(rangeTmr);
+                    rangeTmr = setTimeout(renderCatalog, 300);
                 });
                 root.addEventListener('keydown', e => {
-                    if (e.key === 'Enter' && e.target.matches('.ms-range input')) applyStkRange();
+                    if (e.key === 'Enter' && e.target.matches('.ms-range input')) applyRange(key);
                 });
             }
         });
 
-        let stkRangeTmr;
-        function applyStkRange() {
-            clearTimeout(stkRangeTmr);
+        let rangeTmr;
+        function applyRange(key) {
+            clearTimeout(rangeTmr);
             renderCatalog();
-            msClose('stock');
+            msClose(key);
         }
 
         document.addEventListener('click', e => {
@@ -5518,8 +5564,38 @@
                 { v: 'ge50', txt: '≥ 50', cnt: c(n => n >= 50) },
                 { v: 'out', txt: 'Out of stock', cnt: c(n => n === 0) },
                 { v: 'na', txt: 'N/A (not updated)', cnt: c(n => n < 0) },
-                { v: 'range', txt: 'Custom range', cnt: stkRangeCount() }
+                { v: 'range', txt: 'Custom range', cnt: rangeCount('stock') }
             ]);
+        }
+
+        /* Price presets are ₹100 bands built from the rates actually in the
+           sheet, so every option has items behind it. */
+        const PRICE_BAND = 100;
+        function priceBandOf(v) {
+            const m = /^b(\d+)$/.exec(v);
+            return m ? Number(m[1]) : null;
+        }
+        function populatePriceFilter() {
+            const counts = {};
+            products.forEach(r => {
+                const p = rateNum(r);
+                if (p < 0) return;
+                const b = Math.floor(p / PRICE_BAND) * PRICE_BAND;
+                counts[b] = (counts[b] || 0) + 1;
+            });
+            const bands = Object.keys(counts).map(Number).sort((a, b) => a - b);
+            // A band that vanished on a refresh falls back to All.
+            const cur = priceBandOf(catFilters.price);
+            if (cur !== null && !(cur in counts)) catFilters.price = 'all';
+            msSetOptions('price', [
+                { v: 'all', txt: 'All', cnt: products.length },
+                ...bands.map(b => ({ v: 'b' + b, txt: `₹${b}–${b + PRICE_BAND - 1}`, cnt: counts[b] })),
+                { v: 'range', txt: 'Custom range', cnt: rangeCount('price') }
+            ]);
+        }
+
+        function populateRangeFilter(key) {
+            if (key === 'price') populatePriceFilter(); else populateStockFilter();
         }
 
         function populateSortFilter() {
@@ -5529,6 +5605,7 @@
         /* ═════════ Reset ═════════ */
         function resetCatFilters(rerender) {
             catFilters.stock = CAT_DEFAULTS.stock;
+            catFilters.price = CAT_DEFAULTS.price;
             catFilters.gender = CAT_DEFAULTS.gender;
             catFilters.sub = CAT_DEFAULTS.sub;
             catFilters.img = CAT_DEFAULTS.img;
@@ -5537,9 +5614,10 @@
             catFilters.size = new Set();
             catFilters.type = new Set();
             catFilters.status = new Set();
-            catFilters.stkMin = null;
-            catFilters.stkMax = null;
+            catFilters.stkMin = catFilters.stkMax = null;
+            catFilters.priceMin = catFilters.priceMax = null;
             populateStockFilter();
+            populatePriceFilter();
 
             document.querySelectorAll('.fpill[data-gen]').forEach(x => x.classList.toggle('on', x.dataset.gen === CAT_DEFAULTS.gender));
             document.querySelectorAll('.fpill[data-sub]').forEach(x => x.classList.toggle('on', x.dataset.sub === CAT_DEFAULTS.sub));
