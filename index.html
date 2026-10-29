@@ -3595,6 +3595,37 @@
         :root[data-theme="dark"] .fresh-btn:hover {
             background: var(--white)
         }
+
+        /* Image viewer controls: their white chips kept the light background
+           while the icon colour flipped light, so the icons disappeared. */
+        :root[data-theme="dark"] .vw-x,
+        :root[data-theme="dark"] .vw-nav,
+        :root[data-theme="dark"] .vw-tools,
+        :root[data-theme="dark"] .vw-load {
+            background: rgba(22, 27, 49, .9);
+            color: var(--t1);
+            border: 1px solid var(--border2);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .5)
+        }
+
+        :root[data-theme="dark"] .vw-tools button {
+            color: var(--t1)
+        }
+
+        :root[data-theme="dark"] .vw-x:hover,
+        :root[data-theme="dark"] .vw-nav:hover:not(:disabled) {
+            background: var(--blue-lt);
+            color: #fff
+        }
+
+        :root[data-theme="dark"] .vw-tools button:hover:not(:disabled) {
+            background: var(--blue-lt);
+            color: #fff
+        }
+
+        :root[data-theme="dark"] .vw-zoomtxt {
+            color: var(--t2)
+        }
     </style>
 </head>
 
